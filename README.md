@@ -1,3 +1,9 @@
+# imgfingerprint
+
+This project tries to use a image hash for fingerprint location in an 
+orchard. We use the imgsim project as root of the software, so the license
+is the one which imgsim has.
+
 # Imgsim [![GoDoc](https://godoc.org/github.com/Nr90/imgsim?status.svg)](https://godoc.org/github.com/Nr90/imgsim) [![Go Report Card](https://goreportcard.com/badge/github.com/Nr90/imgsim)](https://goreportcard.com/report/github.com/Nr90/imgsim) [![unstable](http://badges.github.io/stability-badges/dist/unstable.svg)](http://github.com/badges/stability-badges)
 #
 
