@@ -8,6 +8,16 @@
 char * imghash(const char *);
 
 
+convertir (char * origen)
+{
+	char comando[256];
+	//sprintf(comando, "convert %s -gravity North -region 100%cx50%c -fill black -colorize 100\% /tmp/output.png", origen, '%', '%');
+	sprintf(comando, "convert %s -gravity Center -crop 20%cx100%c+0+0 +repage /tmp/output.png", origen, '%', '%');
+
+	printf("%s \n", comando);
+	fflush(0);
+	system(comando);
+}
 
 
 
@@ -18,89 +28,56 @@ int main() {
     char *ruta2 = "/tmp/output.png";
 
     const char * p = "/home/rafa/programacion/cand_doctorado/loop-detection/imgdiff/chicas/png/image0.jpg.chica.jpg.png";
-    const char * parte1 = "/home/rafa/programacion/cand_doctorado/loop-detection/imgdiff/chicas/png/image";
-    const char * parte2 = ".jpg.chica.jpg.png";
+    const char * parte1 = "chicas/i";
+    const char * parte2 = ".jpg.png";
 
     while(1) {
-        // Leer la ruta de la imagen desde stdin
-	/*
-        printf("Enter image path: ");
-        fflush(0);
-        if (fgets(path, sizeof(path)-1, stdin) == NULL) {
-            printf("Failed to read image path\n");
-            break;
-        }
-        path[strcspn(path, "\n")] = 0;  // Eliminar el salto de línea
-        printf("pasamos 1: ");
-        fflush(0);
-
-	char *resultado = imghash(path);
-	*/
-	char *resultado = imghash(p);
+	char *resultado;
 
 	double hashes[100];
 	int indices[100];
 
 	int i;
-	double d=0;
-	for (i=1; i<=8; i++) {
-		sprintf(ruta,"%s%i%s",parte1, i, parte2);
-//		convertir(ruta);
-		//resultado = imghash(ruta2);
-		resultado = imghash(ruta);
-		d = d+atof(resultado);
-        	printf("1.%i :\t\t%lf\n", i, atof(resultado));
-		hashes[i] = atof(resultado);
-		indices[i] = 1;
-	}
-        printf("1 :\t\t%lf\n", d/8.0);
-
-	d=0;
-	for (i=9; i<=16; i++) {
-		sprintf(ruta,"%s%i%s",parte1, i, parte2);
-//		convertir(ruta);
-		//resultado = imghash(ruta2);
-		resultado = imghash(ruta);
-		d = d+atof(resultado);
-        	printf("2.%i :\t\t%lf\n", i, atof(resultado));
-		hashes[i] = atof(resultado);
-		indices[i] = 2;
-	}
-        printf("2 : \t\t%lf\n", d/8.0);
-
-	d=0;
-	for (i=17; i<=24; i++) {
+	for (i=0; i<=102; i++) {
 		sprintf(ruta,"%s%i%s",parte1, i, parte2);
 		//convertir(ruta);
-		//resultado = imghash(ruta2);
+		//sprintf(ruta,"/tmp/output.png");
 		resultado = imghash(ruta);
-		d = d+atof(resultado);
-        	printf("3.%i : \t\t%lf\n", i, atof(resultado));
+        	printf("1.%i :\t\t%lf\n", i, atof(resultado));
 		hashes[i] = atof(resultado);
-		indices[i] = 3;
+		indices[i] = i;
 	}
-        printf("3 : \t\t%lf\n", d/8.0);
 
-	sprintf(ruta,"%s25%s",parte1, parte2);
-	//convertir(ruta2);
-	resultado = imghash(ruta);
-        printf("res: \t\t%lf\n", atof(resultado));
-
-	double diferencia = 10000000000000000;
-	double res = atof(resultado);
+	double diferencia;
+	double res;
 	double tmp;
-	int indice = 0;
-	for (i=1; i<=24; i++) {
+	int indice;
+	int j;
+
+	for (j=85; j<=102; j++) {
+		sprintf(ruta,"%s%i%s",parte1, j, parte2);
+		//convertir(ruta);
+		//sprintf(ruta,"/tmp/output.png");
+		resultado = imghash(ruta);
+		//printf("res: \t\t%lf\n", atof(resultado));
+
+		diferencia = 10000000000000000;
+		res = atof(resultado);
+		indice = -1;
+	for (i=0; i<=84; i++) {
 		tmp = (hashes[i] - res);
 		if (tmp < 0) tmp=tmp*(-1);
+		if (tmp == 0)
+			continue;
 		if (tmp < diferencia) {
 			diferencia = tmp;
 			indice = i;
 		}
 	}
-	if (indice != 0) {
-        	printf("el arbol es el %i \n", indices[indice]);
-        	printf("hash: %lf.  hash BD: %lf \n", res, hashes[indice]);
+		if (indice != -1) {
+        		printf("el arbol es el %i %i %i \n", j, indice, indices[indice]);
+        		printf("hash: %lf.  hash BD: %lf \n", res, hashes[indice]);
+		}
 	}
 
         // Imprimir el resultado

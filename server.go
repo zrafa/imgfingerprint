@@ -9,7 +9,7 @@ import (
     "os"
     "strings"
 
-    "github.com/Nr90/imgsim"
+    "imgfingerprint/imgsim"
     _ "image/gif"
     _ "image/jpeg"
     _ "image/png"
