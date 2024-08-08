@@ -1,0 +1,8 @@
+/home/rafa/programacion/cand_doctorado/loop-detection/DBoW2/build/CMakeFiles/DBoW2.dir
+/home/rafa/programacion/cand_doctorado/loop-detection/DBoW2/build/CMakeFiles/demo.dir
+/home/rafa/programacion/cand_doctorado/loop-detection/DBoW2/build/CMakeFiles/edit_cache.dir
+/home/rafa/programacion/cand_doctorado/loop-detection/DBoW2/build/CMakeFiles/rebuild_cache.dir
+/home/rafa/programacion/cand_doctorado/loop-detection/DBoW2/build/CMakeFiles/list_install_components.dir
+/home/rafa/programacion/cand_doctorado/loop-detection/DBoW2/build/CMakeFiles/install.dir
+/home/rafa/programacion/cand_doctorado/loop-detection/DBoW2/build/CMakeFiles/install/local.dir
+/home/rafa/programacion/cand_doctorado/loop-detection/DBoW2/build/CMakeFiles/install/strip.dir

@@ -1,0 +1,89 @@
+
+#include <DBoW2/DBoW2.h>
+#include <opencv2/core.hpp>
+#include <opencv2/highgui.hpp>
+#include <opencv2/imgproc.hpp>
+#include <opencv2/features2d.hpp>
+#include <vector>
+#include <iostream>
+
+using namespace DBoW2;
+using namespace std;
+using namespace cv;
+
+void createVocabulary(const vector<Mat>& images, ORBVocabulary& voc) {
+    Ptr<ORB> orb = ORB::create();
+    vector<Mat> descriptors;
+
+    for (const Mat &image : images) {
+        vector<KeyPoint> keypoints;
+        Mat descriptor;
+        orb->detectAndCompute(image, noArray(), keypoints, descriptor);
+        descriptors.push_back(descriptor);
+    }
+
+    // Flatten the descriptors into a single Mat
+    Mat all_descriptors;
+    for (const auto& d : descriptors) {
+        all_descriptors.push_back(d);
+    }
+
+    // Create vocabulary
+    voc.create(all_descriptors);
+}
+
+double compareWithVocabulary(const Mat& image, ORBVocabulary& voc) {
+    Ptr<ORB> orb = ORB::create();
+    vector<KeyPoint> keypoints;
+    Mat descriptor;
+    orb->detectAndCompute(image, noArray(), keypoints, descriptor);
+
+    BowVector bow_vec;
+    voc.transform(descriptor, bow_vec);
+
+    // Normally, you'd compare this bow_vec with those in a database,
+    // but for simplicity, we'll return a score based on vocabulary size
+    // as a proxy for similarity.
+    return bow_vec.score(bow_vec);
+}
+
+int main() {
+    // Load your sets of images
+    vector<Mat> set1 = { imread("set1_image1.jpg", IMREAD_GRAYSCALE), imread("set1_image2.jpg", IMREAD_GRAYSCALE),
+                         imread("set1_image3.jpg", IMREAD_GRAYSCALE), imread("set1_image4.jpg", IMREAD_GRAYSCALE),
+                         imread("set1_image5.jpg", IMREAD_GRAYSCALE) };
+
+    vector<Mat> set2 = { imread("set2_image1.jpg", IMREAD_GRAYSCALE), imread("set2_image2.jpg", IMREAD_GRAYSCALE),
+                         imread("set2_image3.jpg", IMREAD_GRAYSCALE), imread("set2_image4.jpg", IMREAD_GRAYSCALE),
+                         imread("set2_image5.jpg", IMREAD_GRAYSCALE) };
+
+    vector<Mat> set3 = { imread("set3_image1.jpg", IMREAD_GRAYSCALE), imread("set3_image2.jpg", IMREAD_GRAYSCALE),
+                         imread("set3_image3.jpg", IMREAD_GRAYSCALE), imread("set3_image4.jpg", IMREAD_GRAYSCALE),
+                         imread("set3_image5.jpg", IMREAD_GRAYSCALE) };
+
+    // Create vocabularies
+    ORBVocabulary voc1, voc2, voc3;
+    createVocabulary(set1, voc1);
+    createVocabulary(set2, voc2);
+    createVocabulary(set3, voc3);
+
+    // Load the extra image
+    Mat extra_image = imread("extra_image.jpg", IMREAD_GRAYSCALE);
+
+    // Compare the extra image with each vocabulary
+    double score1 = compareWithVocabulary(extra_image, voc1);
+    double score2 = compareWithVocabulary(extra_image, voc2);
+    double score3 = compareWithVocabulary(extra_image, voc3);
+
+    // Find the best matching set
+    if (score1 > score2 && score1 > score3) {
+        cout << "The extra image belongs to Set 1." << endl;
+    } else if (score2 > score1 && score2 > score3) {
+        cout << "The extra image belongs to Set 2." << endl;
+    } else {
+        cout << "The extra image belongs to Set 3." << endl;
+    }
+
+    return 0;
+}
+

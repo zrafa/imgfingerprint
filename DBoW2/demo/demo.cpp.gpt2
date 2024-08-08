@@ -1,0 +1,138 @@
+
+#include <DBoW2/DBoW2.h>
+#include <DBoW2/TemplatedVocabulary.h>
+#include <DBoW2/TemplatedDatabase.h>
+#include <opencv2/core.hpp>
+#include <opencv2/highgui.hpp>
+#include <opencv2/imgproc.hpp>
+#include <opencv2/features2d.hpp>
+#include <vector>
+#include <iostream>
+
+using namespace DBoW2;
+using namespace std;
+using namespace cv;
+
+void createVocabulary(const vector<Mat>& images, TemplatedVocabulary<FORB::TDescriptor, FORB> &voc) {
+    Ptr<ORB> orb = ORB::create();
+    // Ejemplo de ajuste de parámetros del ORB
+//Ptr<ORB> orb = ORB::create(1000, 1.2f, 13, 31, 0, 2, ORB::HARRIS_SCORE, 31);
+
+    vector<vector<FORB::TDescriptor>> features;
+
+    for (const Mat &image : images) {
+        vector<KeyPoint> keypoints;
+        Mat descriptors;
+        orb->detectAndCompute(image, noArray(), keypoints, descriptors);
+
+        vector<FORB::TDescriptor> bow_descriptors;
+        for (int i = 0; i < descriptors.rows; ++i) {
+            bow_descriptors.push_back(descriptors.row(i));
+        }
+        features.push_back(bow_descriptors);
+    }
+
+    // Create vocabulary
+    voc.create(features);
+}
+
+BowVector getBowVector(const Mat& image, TemplatedVocabulary<FORB::TDescriptor, FORB> &voc) {
+    Ptr<ORB> orb = ORB::create();
+    vector<KeyPoint> keypoints;
+    Mat descriptors;
+    orb->detectAndCompute(image, noArray(), keypoints, descriptors);
+
+    vector<FORB::TDescriptor> bow_descriptors;
+    for (int i = 0; i < descriptors.rows; ++i) {
+        bow_descriptors.push_back(descriptors.row(i));
+    }
+
+    BowVector bow_vec;
+    voc.transform(bow_descriptors, bow_vec);
+
+    return bow_vec;
+}
+
+double compareBowVectors(const BowVector& v1, const BowVector& v2) {
+    BowVector::const_iterator vit1, vit2;
+    const BowVector::const_iterator v1_end = v1.end();
+    const BowVector::const_iterator v2_end = v2.end();
+    double score = 0;
+    vit1 = v1.begin();
+    vit2 = v2.begin();
+    while (vit1 != v1_end && vit2 != v2_end) {
+        const double vi1 = vit1->second;
+        const double vi2 = vit2->second;
+        if (vit1->first == vit2->first) {
+            score += vi1 * vi2;
+            ++vit1;
+            ++vit2;
+        } else if (vit1->first < vit2->first) {
+            ++vit1;
+        } else {
+            ++vit2;
+        }
+    }
+    return score;
+}
+
+int main() {
+    // Load your sets of images
+    vector<Mat> set1 = { imread("set1_image1.jpg", IMREAD_GRAYSCALE), imread("set1_image2.jpg", IMREAD_GRAYSCALE),
+                         imread("set1_image3.jpg", IMREAD_GRAYSCALE), imread("set1_image4.jpg", IMREAD_GRAYSCALE),
+                         imread("set1_image6.jpg", IMREAD_GRAYSCALE), imread("set1_image7.jpg", IMREAD_GRAYSCALE),
+                         imread("set1_image8.jpg", IMREAD_GRAYSCALE),
+                         imread("set1_image5.jpg", IMREAD_GRAYSCALE) };
+
+    vector<Mat> set2 = { imread("set2_image1.jpg", IMREAD_GRAYSCALE), imread("set2_image2.jpg", IMREAD_GRAYSCALE),
+                         imread("set2_image3.jpg", IMREAD_GRAYSCALE), imread("set2_image4.jpg", IMREAD_GRAYSCALE),
+                         imread("set2_image6.jpg", IMREAD_GRAYSCALE), imread("set2_image7.jpg", IMREAD_GRAYSCALE),
+                         imread("set2_image8.jpg", IMREAD_GRAYSCALE),
+                         imread("set2_image5.jpg", IMREAD_GRAYSCALE) };
+
+    vector<Mat> set3 = { imread("set3_image1.jpg", IMREAD_GRAYSCALE), imread("set3_image2.jpg", IMREAD_GRAYSCALE),
+                         imread("set3_image3.jpg", IMREAD_GRAYSCALE), imread("set3_image4.jpg", IMREAD_GRAYSCALE),
+                         imread("set3_image6.jpg", IMREAD_GRAYSCALE), imread("set1_image3.jpg", IMREAD_GRAYSCALE),
+                         imread("set3_image8.jpg", IMREAD_GRAYSCALE),
+                         imread("set3_image5.jpg", IMREAD_GRAYSCALE) };
+
+    // Create vocabularies
+    TemplatedVocabulary<FORB::TDescriptor, FORB> voc1, voc2, voc3;
+    // Ejemplo de creación de vocabulario con tamaño mayor (por defecto es 10)
+//TemplatedVocabulary<FORB::TDescriptor, FORB> voc1(30, 5, TF_IDF, L1_NORM);
+//TemplatedVocabulary<FORB::TDescriptor, FORB> voc2(30, 5, TF_IDF, L1_NORM);
+//TemplatedVocabulary<FORB::TDescriptor, FORB> voc3(30, 5, TF_IDF, L1_NORM);
+
+    createVocabulary(set1, voc1);
+    createVocabulary(set2, voc2);
+    createVocabulary(set3, voc3);
+
+    // Load the extra image
+    Mat extra_image = imread("extra_image.jpg", IMREAD_GRAYSCALE);
+
+    // Get BoW vectors for the extra image
+    BowVector bow_vec_extra = getBowVector(extra_image, voc1);
+
+    // Get BoW vectors for each set (assuming first image represents the set)
+    BowVector bow_vec_set1 = getBowVector(set1[0], voc1);
+    BowVector bow_vec_set2 = getBowVector(set2[0], voc2);
+    BowVector bow_vec_set3 = getBowVector(set3[0], voc3);
+
+    // Compare the extra image with each set
+    double score1 = compareBowVectors(bow_vec_extra, bow_vec_set1);
+    double score2 = compareBowVectors(bow_vec_extra, bow_vec_set2);
+    double score3 = compareBowVectors(bow_vec_extra, bow_vec_set3);
+
+        cout << "The values " << score1 << " " << score2 <<" " <<  score3 << endl;
+    // Find the best matching set
+    if (score1 > score2 && score1 > score3) {
+        cout << "The extra image belongs to Set 1." << score1 << " " << score2 <<" " <<  score3 << endl;
+    } else if (score2 > score1 && score2 > score3) {
+        cout << "The extra image belongs to Set 2." << endl;
+    } else {
+        cout << "The extra image belongs to Set 3." << endl;
+    }
+
+    return 0;
+}
+

@@ -1,0 +1,143 @@
+
+estoy analizando fotos con opencv en c++ usando caracteristicas orb.  EN la foto hay un peral en frente de la camara.. y atras se ven perales mas lejanos y yuyos abajos. 
+Lo que quiero es que los puntos claves orb estén sobre el tronco del peral principal en frente.
+
+Estoy usando esta sentencia:
+cv::ORB::create(2000, 1.2f, 8, 31, 0, 2, cv::ORB::HARRIS_SCORE, 31);
+
+Pero no me da los resultados esperados (encuentra muchos puntos claves en arboles distantes o en los yuyos). Como puedo ir modificando los parametros de orb::create para sintonizar lo mejor posible?
+Por ejemplo, el que dice 2000, como lo voy modificando? de 100 en 100? o de 1000 en 1000?
+
+Lo mismo quiero saber para los otros argumentos, como los voy modificando? Por ejemplo, el que dice 1.2f, como lo voy modificando? lo  voy aumentando en 0.2 ? o en 1.0? BUeno, necesito ayuda con eso. Como voy modificando cada argumento en cada prueba.
+ChatGPT
+
+
+
+
+Para ajustar los parámetros de ORB y mejorar la detección de puntos clave en el tronco del peral principal, puedes modificar los valores de la siguiente manera:
+
+nfeatures (2000):
+
+Descripción: Número máximo de características a detectar.
+Cómo modificar: Comienza ajustando de 100 en 100. Si no ves mejoras significativas, prueba cambios más grandes, de 500 en 500 o incluso 1000 en 1000.
+Ejemplo: Prueba 1500, luego 1800, luego 2200, etc.
+scaleFactor (1.2f):
+
+Descripción: Factor de escala entre niveles en la pirámide de escala.
+Cómo modificar: Pequeños ajustes como 0.1 pueden ser útiles. Puedes probar también en pasos de 0.2.
+Ejemplo: Prueba 1.1, luego 1.3, luego 1.4, etc.
+nlevels (8):
+
+Descripción: Número de niveles en la pirámide de escala.
+Cómo modificar: Prueba ajustarlo en pasos de 1.
+Ejemplo: Prueba 7, luego 9, luego 10, etc.
+edgeThreshold (31):
+
+Descripción: Tamaño del borde donde no se detectan características.
+Cómo modificar: Cambia en pasos de 5.
+Ejemplo: Prueba 26, luego 36, luego 41, etc.
+firstLevel (0):
+
+Descripción: Nivel de la primera pirámide.
+Cómo modificar: Normalmente se mantiene en 0, pero puedes experimentar con 1 para ver si mejora la detección.
+Ejemplo: Prueba 1.
+WTA_K (2):
+
+Descripción: Número de puntos a considerar para generar el descriptor (2, 3, o 4).
+Cómo modificar: Cambia entre 2, 3, y 4.
+Ejemplo: Prueba 3, luego 4.
+scoreType (cv::ORB::HARRIS_SCORE):
+
+Descripción: Tipo de puntuación para ordenar las características.
+Cómo modificar: Prueba cambiar a cv::ORB::FAST_SCORE.
+Ejemplo: cv::ORB::FAST_SCORE.
+patchSize (31):
+
+Descripción: Tamaño de cada parche utilizado por el descriptor.
+Cómo modificar: Cambia en pasos de 5.
+Ejemplo: Prueba 26, luego 36, luego 41, etc.
+Te sugiero realizar ajustes en un parámetro a la vez, observar los resultados y luego ajustar otro parámetro. Esto te permitirá identificar qué ajustes tienen el mayor impacto en la detección de los puntos clave en el tronco del peral principal.
+
+
+
+
+
+Decime tambien, para cada paramentro, cual debería ser el valor minimo (inicial), y cual es el valor maximo?
+ChatGPT
+Claro, aquí tienes una guía sobre los valores mínimos y máximos típicos para cada parámetro de ORB:
+
+
+nfeatures (2000):
+
+Descripción: Número máximo de características a detectar.
+Valor mínimo: 100
+Valor máximo: 10000
+scaleFactor (1.2f):
+
+Descripción: Factor de escala entre niveles en la pirámide de escala.
+Valor mínimo: 1.01
+Valor máximo: 2.0
+nlevels (8):
+
+Descripción: Número de niveles en la pirámide de escala.
+Valor mínimo: 1
+Valor máximo: 20
+edgeThreshold (31):
+
+Descripción: Tamaño del borde donde no se detectan características.
+Valor mínimo: 5
+Valor máximo: 100
+firstLevel (0):
+
+Descripción: Nivel de la primera pirámide.
+Valor mínimo: 0
+Valor máximo: 1
+WTA_K (2):
+
+Descripción: Número de puntos a considerar para generar el descriptor (2, 3, o 4).
+Valor mínimo: 2
+Valor máximo: 4
+scoreType (cv::ORB::HARRIS_SCORE):
+
+Descripción: Tipo de puntuación para ordenar las características.
+Valores posibles: cv::ORB::HARRIS_SCORE o cv::ORB::FAST_SCORE
+patchSize (31):
+
+Descripción: Tamaño de cada parche utilizado por el descriptor.
+Valor mínimo: 5
+Valor máximo: 100
+Puedes empezar con los valores mínimos y máximos sugeridos para cada parámetro y ajustar dentro de ese rango para encontrar la mejor configuración para tu aplicación específica.
+
+
+
+
+
+
+
+RECORRER LOS KEYPOINTS:
+
+    // Recorrer los keypoints y obtener sus coordenadas
+    for (size_t i = 0; i < keypoints.size(); ++i) {
+        float x = keypoints[i].pt.x;
+        float y = keypoints[i].pt.y;
+        std::cout << "Keypoint " << i << ": (" << x << ", " << y << ")" << std::endl;
+
+        // Aquí puedes agregar tu lógica para verificar si (x, y) está dentro del tronco principal
+    }
+
+
+
+PARA REAJUSTAR PARAMETROS:
+
+
+// Ajustar los parámetros del objeto ORB
+orb->setMaxFeatures(1500);
+orb->setScaleFactor(1.1f);
+orb->setNLevels(6);
+orb->setEdgeThreshold(21);
+
+// Usar detectAndCompute con el nuevo conjunto de parámetros
+orb->detectAndCompute(image, mask, keypoints, descriptors);
+
+
+
