@@ -40,7 +40,7 @@ void testDatabase(const vector<vector<cv::Mat > > &features);
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
 
 // number of training images
-const int NIMAGES = 229;
+const int NIMAGES = 1262;
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
 
@@ -60,8 +60,12 @@ void convertir (const char * origen)
 
  //      system(comando);
 
-        sprintf(comando, "convert %s   -gravity North -region 100%cx50%c -fill black -colorize 100%c /tmp/output.png", origen, '%', '%', '%');
+       // sprintf(comando, "convert %s   -gravity North -region 100%cx50%c -fill black -colorize 100%c /tmp/output.png", origen, '%', '%', '%');
+       //system(comando);
+
+        sprintf(comando, "convert %s -gravity South -crop 100%cx50%c+0+0 +repage /tmp/output.png  ", origen, '%', '%');
        system(comando);
+
 }
 
 
@@ -89,7 +93,7 @@ void loadFeatures(vector<vector<cv::Mat > > &features)
   features.reserve(NIMAGES);
 
   //cv::Ptr<cv::ORB> orb = cv::ORB::create(8000);
-  cv::Ptr<cv::ORB> orb = cv::ORB::create(500, 1.11, 17, 95, 1, 2, cv::ORB::HARRIS_SCORE, 70);
+  cv::Ptr<cv::ORB> orb = cv::ORB::create(200, 1.01, 13, 5, 1, 2, cv::ORB::HARRIS_SCORE, 5);
 
 
 
@@ -97,7 +101,8 @@ void loadFeatures(vector<vector<cv::Mat > > &features)
   for(int i = 0; i < NIMAGES; ++i)
   {
     stringstream ss;
-    ss << "i" << i << ".jpg";
+    //ss << "i" << i << ".jpg";
+    ss << "f" << i << ".jpg";
 
     //cv::Mat image = cv::imread(ss.str(), 0);
  //   cv::Mat image = cv::imread(ss.str(), cv::IMREAD_COLOR);
@@ -135,11 +140,11 @@ void loadFeatures(vector<vector<cv::Mat > > &features)
 
 
     // Mostrar la imagen con los puntos clave detectados
-   cv::namedWindow("ORB Keypoints", cv::WINDOW_NORMAL);
-   cv::imshow("ORB Keypoints", image_with_keypoints);
+//   cv::namedWindow("ORB Keypoints", cv::WINDOW_NORMAL);
+//   cv::imshow("ORB Keypoints", image_with_keypoints);
 
     // Esperar a que se presione una tecla para cerrar la ventana
-  cv::waitKey(0);
+//  cv::waitKey(0);
 
 
 
@@ -185,6 +190,51 @@ void testVocCreation(const vector<vector<cv::Mat > > &features)
 
   // lets do something with this vocabulary
   cout << "Matching images against themselves (0 low, 1 high): " << endl;
+
+
+
+
+
+	// vemos si podemos encontrar el arbol
+
+  	int i, j, arbol;
+	int arbol_prev = -1;
+	int varios = 0;
+  	double score; double ac; double total; int kk;
+	//BowVector bowVec;
+  	BowVector v1, v2;
+	for (i=80; i<1200; i++) {
+		ac=0; kk=0; total=0;
+		for (j=0; j<79; j++) {
+			//db.transform(features[i], bowVec);
+    			voc.transform(features[i], v1);
+    			voc.transform(features[j], v2);
+    			//score = db.score(bowVec, db.getVocabulary(j));
+			score = voc.score(v1, v2);
+			ac = ac + score;
+			kk++;
+			if (kk == 5) {
+				if (ac > total) {
+					total = ac;
+					arbol = j;
+				}
+				kk=0; 
+				ac=0;
+			}
+		}
+		if (arbol == arbol_prev) {
+			varios++;
+			if (varios>=2) {
+  				cout << " arbol " << i << " coincide con " << arbol << endl;
+			};
+		} else {
+			varios = 0;
+		}
+		arbol_prev = arbol;
+
+  		// cout << " arbol " << i << " coincide con " << arbol << endl;
+	}
+
   /*
   BowVector v1, v2;
   // RAFA
@@ -251,6 +301,16 @@ void testVocCreation(const vector<vector<cv::Mat > > &features)
   cout << "... done!" << endl;
 
   cout << "Database information: " << endl << db << endl;
+
+
+
+
+
+
+
+
+
+
 
   // and query the database
   cout << "Querying the database: " << endl;

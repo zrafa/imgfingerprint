@@ -12,11 +12,14 @@ convertir (char * origen)
 {
 	char comando[256];
 	//sprintf(comando, "convert %s -gravity North -region 100%cx50%c -fill black -colorize 100\% /tmp/output.png", origen, '%', '%');
-	sprintf(comando, "convert %s -gravity Center -crop 20%cx100%c+0+0 +repage /tmp/output.png", origen, '%', '%');
+	sprintf(comando, "convert %s -gravity Center -crop 50%cx100%c+0+0 +repage /tmp/output.png", origen, '%', '%');
 
 	printf("%s \n", comando);
 	fflush(0);
 	system(comando);
+//	sprintf(comando, "convert /tmp/output2.png -gravity North -region 100%cx10%c -fill black -colorize 100%c /tmp/output.png", '%', '%', '%');
+ //       system(comando);
+
 }
 
 
@@ -27,7 +30,6 @@ int main() {
     char ruta[1024];
     char *ruta2 = "/tmp/output.png";
 
-    const char * p = "/home/rafa/programacion/cand_doctorado/loop-detection/imgdiff/chicas/png/image0.jpg.chica.jpg.png";
     const char * parte1 = "chicas/i";
     const char * parte2 = ".jpg.png";
 
@@ -40,8 +42,8 @@ int main() {
 	int i;
 	for (i=0; i<=102; i++) {
 		sprintf(ruta,"%s%i%s",parte1, i, parte2);
-		//convertir(ruta);
-		//sprintf(ruta,"/tmp/output.png");
+		convertir(ruta);
+		sprintf(ruta,"/tmp/output.png");
 		resultado = imghash(ruta);
         	printf("1.%i :\t\t%lf\n", i, atof(resultado));
 		hashes[i] = atof(resultado);
@@ -56,8 +58,8 @@ int main() {
 
 	for (j=85; j<=102; j++) {
 		sprintf(ruta,"%s%i%s",parte1, j, parte2);
-		//convertir(ruta);
-		//sprintf(ruta,"/tmp/output.png");
+		convertir(ruta);
+		sprintf(ruta,"/tmp/output.png");
 		resultado = imghash(ruta);
 		//printf("res: \t\t%lf\n", atof(resultado));
 

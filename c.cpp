@@ -6,7 +6,7 @@
 
 int main() {
     // Cargar la imagen
-    cv::Mat image = cv::imread("tronco2.jpg", cv::IMREAD_COLOR);
+    cv::Mat image = cv::imread("tronco4.png", cv::IMREAD_COLOR);
     if (image.empty()) {
         std::cerr << "No se pudo cargar la imagen." << std::endl;
         return -1;
@@ -50,11 +50,12 @@ int main() {
     	for (ii = 0; ii < keypoints.size(); ++ii) {
 		total++;
         	float x = keypoints[ii].pt.x;
-		if ((x>=120) && (x<=185))
+		//if ((x>=120) && (x<=185))
+		if ((x>=143) && (x<=183))
 			cant++;
     	}
 	std::cout << " total " << total << " cant " << cant << std::endl;
-	if (cant > (50*total/100)) { 	// if cant es un 70%
+	if (cant >= (55*total/100)) { 	// if cant es un 70%
 		std::cout << "cant:" << cant << " scalefactor " << i 
 			<< " nlevels " << j 
 			<< " edgethreshold " << k 
