@@ -93,7 +93,11 @@ void loadFeatures(vector<vector<cv::Mat > > &features)
   features.reserve(NIMAGES);
 
   //cv::Ptr<cv::ORB> orb = cv::ORB::create(8000);
-  cv::Ptr<cv::ORB> orb = cv::ORB::create(200, 1.01, 13, 5, 1, 2, cv::ORB::HARRIS_SCORE, 5);
+  // BUEN PERFORMANCE cv::Ptr<cv::ORB> orb = cv::ORB::create(200, 1.01, 3, 65, 2, 4, cv::ORB::HARRIS_SCORE, 45);
+  // EL MEJOR HASTA AHORA cv::Ptr<cv::ORB> orb = cv::ORB::create(200, 1.01, 5, 90, 1, 2, cv::ORB::HARRIS_SCORE, 30);
+  // cv::Ptr<cv::ORB> orb = cv::ORB::create(200, 1.01, 9, 55, 2, 2, cv::ORB::HARRIS_SCORE, 85);
+//  cv::Ptr<cv::ORB> orb = cv::ORB::create(200, 1.01, 9, 75, 2, 2, cv::ORB::HARRIS_SCORE, 85);
+  cv::Ptr<cv::ORB> orb = cv::ORB::create(200, 1.01, 9, 90, 1, 3, cv::ORB::HARRIS_SCORE, 5);
 
 
 
@@ -224,7 +228,7 @@ void testVocCreation(const vector<vector<cv::Mat > > &features)
 		}
 		if (arbol == arbol_prev) {
 			varios++;
-			if (varios>=2) {
+			if (varios>=3) {
   				cout << " arbol " << i << " coincide con " << arbol << endl;
 			};
 		} else {
