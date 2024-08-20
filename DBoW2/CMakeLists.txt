@@ -4,6 +4,8 @@ include(ExternalProject)
 
 option(BUILD_DBoW2   "Build DBoW2"            ON)
 option(BUILD_Demo    "Build demo application" ON)
+option(BUILD_db_create    "Build db create" ON)
+option(BUILD_fingerprint_by_images    "Build fingerprint test app" ON)
 
 if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
   set(CMAKE_BUILD_TYPE Release CACHE STRING "Choose the type of build." FORCE)
@@ -43,11 +45,25 @@ if(BUILD_DBoW2)
   set_target_properties(${PROJECT_NAME} PROPERTIES CXX_STANDARD 11)
 endif(BUILD_DBoW2)
 
+if(BUILD_db_create)
+  add_executable(db_create demo/dbow_crear_db.cpp)
+  target_link_libraries(db_create ${PROJECT_NAME} ${OpenCV_LIBS})
+  set_target_properties(db_create PROPERTIES CXX_STANDARD 11)
+  # file(COPY demo/images DESTINATION ${CMAKE_BINARY_DIR}/)
+endif(BUILD_db_create)
+
+if(BUILD_fingerprint_by_images)
+  add_executable(fingerprint_by_images demo/fingerprint_by_images.cpp)
+  target_link_libraries(fingerprint_by_images ${PROJECT_NAME} ${OpenCV_LIBS})
+  set_target_properties(fingerprint_by_images PROPERTIES CXX_STANDARD 11)
+  # file(COPY demo/images DESTINATION ${CMAKE_BINARY_DIR}/)
+endif(BUILD_fingerprint_by_images)
+
 if(BUILD_Demo)
   add_executable(demo demo/demo.cpp)
   target_link_libraries(demo ${PROJECT_NAME} ${OpenCV_LIBS})
   set_target_properties(demo PROPERTIES CXX_STANDARD 11)
-  file(COPY demo/images DESTINATION ${CMAKE_BINARY_DIR}/)
+  # file(COPY demo/images DESTINATION ${CMAKE_BINARY_DIR}/)
 endif(BUILD_Demo)
 
 configure_file(src/DBoW2.cmake.in
