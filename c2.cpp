@@ -41,35 +41,28 @@ int main() {
 
     cv::Mat mask;
 
-    // Inicializar ORB
-    cv::Ptr<cv::ORB> orb = cv::ORB::create();
+    // Inicializar SIFT
+//    cv::Ptr<cv::SIFT> sift = cv::SIFT::create();
 
     // Detectar y computar descriptores
-    std::vector<cv::KeyPoint> keypoints;
-    cv::Mat descriptors;
+ //   std::vector<cv::KeyPoint> keypoints;
+  //  cv::Mat descriptors;
 
+    	std::vector<cv::KeyPoint> keypoints;
+    	cv::Mat descriptors;
 
-    float i;
-    int j,k,l, m, n;
+    double j, k, l;
+    int i, m, n;
     int cant, ii, total;
-    for (i=1.01; i<=2.0; i=i+0.1) 	// factor de escala
-    for (j=1; j<=20; j=j+2) {	// nlevels
-		std::cout << "nlevels :" << j << " " << std::endl;
-    for (k=5; k<=100; k=k+5)	// edgeThreshold
-    for (l=1; l<=2; l++)	// firstLevel
-    for (m=2; m<=4; m++)	// WTA_K
-    for (n=5; n<=100; n=n+5) {	// patchSize
+    for (i=1; i<=6; i++) 	// nOctaveLayers
+    for (j=0.01; j<=0.1; j=j+0.01) {	// contrastThreshold 
+		std::cout << "contrastThreshold:" << j << " " << std::endl;
+    for (k=5.0; k<=20.0; k=k+0.5)	// edgeThreshold
+    for (l=1.2; l<=2.0; l=l+0.1) {	// sigma
 
-	orb->setMaxFeatures(50);
-	orb->setScaleFactor(i);
-	orb->setNLevels(j);
-	orb->setEdgeThreshold(k);
-	orb->setFirstLevel(l);
-	orb->setWTA_K(m);
-	orb->setPatchSize(n);
+        cv::Ptr<cv::SIFT> sift = cv::SIFT::create(200, i, j, k, l);
 
-    	orb->detectAndCompute(image, mask, keypoints, descriptors);
-
+    	sift->detectAndCompute(image, cv::noArray(), keypoints, descriptors);
 
 	cant=0;
 	total=0;
@@ -82,18 +75,16 @@ int main() {
 			cant++;
     	}
 	std::cout << " total " << total << " cant " << cant << std::endl;
-	if (cant >= (50*total/100)) { 	// if cant es un 70%
-		if (en_tronco(orb, image2, mask, keypoints, descriptors, 124, 184, 50)
-				&&
-		en_tronco(orb, image3, mask, keypoints, descriptors, 144, 184, 50)) 		
-		{
+	if (cant >= (80*total/100)) { 	// if cant es un 70%
+	//	if (en_tronco(orb, image2, mask, keypoints, descriptors, 124, 184, 70))
+			//	&&
+		//en_tronco(orb, image3, mask, keypoints, descriptors, 144, 184, 40)) 		{
+	//	{
 
-		std::cout << "cant:" << cant << " scalefactor " << i 
-			<< " nlevels " << j 
+		std::cout << "cant:" << cant << " octave " << i 
+			<< " contrastthreshold " << j 
 			<< " edgethreshold " << k 
-			<< " firstlevel " << l 
-			<< " wta_k " << m 
-			<< " patchsize " << n 
+			<< " sigma " << l 
 			<< std::endl;
 		// Dibujar los puntos clave
 		cv::Mat outputImage;
@@ -102,7 +93,7 @@ int main() {
 		// Mostrar la imagen con los puntos clave
 		cv::imshow("Keypoints", outputImage);
 		cv::waitKey(0);
-		}
+	//	}
 	}
 	      
 

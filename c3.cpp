@@ -49,26 +49,29 @@ int main() {
     cv::Mat descriptors;
 
 
-    float i;
-    int j,k,l, m, n;
-    int cant, ii, total;
-    for (i=1.01; i<=2.0; i=i+0.1) 	// factor de escala
-    for (j=1; j<=20; j=j+2) {	// nlevels
-		std::cout << "nlevels :" << j << " " << std::endl;
-    for (k=5; k<=100; k=k+5)	// edgeThreshold
-    for (l=1; l<=2; l++)	// firstLevel
-    for (m=2; m<=4; m++)	// WTA_K
-    for (n=5; n<=100; n=n+5) {	// patchSize
+    int cant, total, ii;
 
-	orb->setMaxFeatures(50);
-	orb->setScaleFactor(i);
-	orb->setNLevels(j);
-	orb->setEdgeThreshold(k);
-	orb->setFirstLevel(l);
-	orb->setWTA_K(m);
-	orb->setPatchSize(n);
 
-    	orb->detectAndCompute(image, mask, keypoints, descriptors);
+
+    // Ajuste sistemático de los parámetros de BRISK
+    for (int thresh = 5; thresh <= 70; thresh += 5) {         // Rango y pasos para el umbral
+        for (int octaves = 1; octaves <= 5; octaves++) {         // Rango y pasos para octavas
+            for (float patternScale = 0.0f; patternScale <= 2.0f; patternScale += 0.1f) { // Rango y pasos para escala del patrón
+
+                // Crear el detector BRISK con los parámetros específicos
+                cv::Ptr<cv::BRISK> brisk = cv::BRISK::create(thresh, octaves, patternScale);
+
+                // Detectar y calcular descriptores
+                brisk->detectAndCompute(image, cv::noArray(), keypoints, descriptors);
+
+                // Mostrar resultados
+                //std::cout << "BRISK detectó " << keypoints.size() << " keypoints con los siguientes parámetros:\n"
+                 //         << "Threshold: " << thresh << ", Octaves: " << octaves
+                  //        << ", PatternScale: " << patternScale << std::endl;
+
+
+
+
 
 
 	cant=0;
@@ -82,19 +85,19 @@ int main() {
 			cant++;
     	}
 	std::cout << " total " << total << " cant " << cant << std::endl;
-	if (cant >= (50*total/100)) { 	// if cant es un 70%
-		if (en_tronco(orb, image2, mask, keypoints, descriptors, 124, 184, 50)
-				&&
-		en_tronco(orb, image3, mask, keypoints, descriptors, 144, 184, 50)) 		
-		{
+	if ((total != 0) && (cant >= (50*total/100))) { 	// if cant es un 70%
+		//if (en_tronco(orb, image2, mask, keypoints, descriptors, 124, 184, 50)
+		//		&&
+		//en_tronco(orb, image3, mask, keypoints, descriptors, 144, 184, 50)) 		
+		//{
 
-		std::cout << "cant:" << cant << " scalefactor " << i 
-			<< " nlevels " << j 
-			<< " edgethreshold " << k 
-			<< " firstlevel " << l 
-			<< " wta_k " << m 
-			<< " patchsize " << n 
-			<< std::endl;
+                    // Mostrar o procesar resultados según necesidad
+                    std::cout << "brisk: " << thresh 
+                              << ", octaves " << octaves
+                              << ", pattern scale " << patternScale
+                              << std::endl;
+
+
 		// Dibujar los puntos clave
 		cv::Mat outputImage;
 		cv::drawKeypoints(image, keypoints, outputImage, cv::Scalar(0, 255, 0));
@@ -102,12 +105,13 @@ int main() {
 		// Mostrar la imagen con los puntos clave
 		cv::imshow("Keypoints", outputImage);
 		cv::waitKey(0);
-		}
+		//}
 	}
-	      
 
+
+            }
+        }
     }
-    }   // del for i
 
     // Dibujar los puntos clave
     cv::Mat outputImage;
