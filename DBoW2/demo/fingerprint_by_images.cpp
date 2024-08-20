@@ -91,6 +91,21 @@ void loadFeatures(vector<vector<cv::Mat > > &features)
 	// cv::Ptr<cv::ORB> orb = cv::ORB::create(200, 1.01, 3, 65, 2, 4, cv::ORB::HARRIS_SCORE, 45);
 
 	cout << "Extracting ORB features..." << endl;
+	for(int i = 0; i < 79; ++i) {
+		stringstream ss;
+		ss << "f" << i << ".jpg";
+
+		cv::Mat image = cv::imread(ss.str(), cv::IMREAD_COLOR);
+
+		cv::Mat mask;
+		vector<cv::KeyPoint> keypoints;
+		cv::Mat descriptors;
+
+		orb->detectAndCompute(image, mask, keypoints, descriptors);
+		features.push_back(vector<cv::Mat >());
+		changeStructure(descriptors, features.back());
+	}
+
 	for(int i = 80; i < NIMAGES; ++i) {
 		stringstream ss;
 		ss << "f" << i << ".jpg";
