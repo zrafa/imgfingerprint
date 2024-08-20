@@ -93,16 +93,18 @@ void loadFeatures(vector<vector<cv::Mat > > &features)
   features.reserve(NIMAGES);
 
   //cv::Ptr<cv::ORB> orb = cv::ORB::create(8000);
+  // BUEN PERFORMANCE cv::Ptr<cv::ORB> orb = cv::ORB::create(200, 1.01, 3, 65, 2, 4, cv::ORB::HARRIS_SCORE, 45);
+  // EL MEJOR HASTA AHORA cv::Ptr<cv::ORB> orb = cv::ORB::create(200, 1.01, 5, 90, 1, 2, cv::ORB::HARRIS_SCORE, 30);
   // cv::Ptr<cv::ORB> orb = cv::ORB::create(200, 1.01, 9, 55, 2, 2, cv::ORB::HARRIS_SCORE, 85);
-  // BIEN cv::Ptr<cv::ORB> orb = cv::ORB::create(200, 1.01, 5, 90, 1, 2, cv::ORB::HARRIS_SCORE, 30);
-  // EL MEJOR! BUEN PERFORMANCE cv::Ptr<cv::ORB> orb = cv::ORB::create(200, 1.01, 3, 65, 2, 4, cv::ORB::HARRIS_SCORE, 45);
-  cv::Ptr<cv::ORB> orb = cv::ORB::create(200, 1.01, 3, 65, 2, 4, cv::ORB::HARRIS_SCORE, 45);
-  // ULTIMO MUY BIEN cv::Ptr<cv::ORB> orb = cv::ORB::create(200, 1.01, 15, 85, 2, 4, cv::ORB::HARRIS_SCORE, 75);
+  // cv::Ptr<cv::ORB> orb = cv::ORB::create(200, 1.01, 9, 90, 1, 3, cv::ORB::HARRIS_SCORE, 5);
+  // MUY BIEN cv::Ptr<cv::ORB> orb = cv::ORB::create(200, 1.01, 15, 85, 2, 4, cv::ORB::HARRIS_SCORE, 75);
+  cv::Ptr<cv::ORB> orb = cv::ORB::create(200, 1.01, 15, 85, 2, 4, cv::ORB::HARRIS_SCORE, 75);
+  // MALO cv::Ptr<cv::ORB> orb = cv::ORB::create(200, 1.11, 5, 100, 1, 2, cv::ORB::HARRIS_SCORE, 10);
 
   // montamos el ram fs
- // system("mkdir /tmp/m");
-  //printf("clave de root:\n"); fflush(0);
-  //system("sudo mount -t tmpfs ramfs /tmp/m ");
+  system("mkdir /tmp/m");
+  printf("clave de root:\n"); fflush(0);
+  system("sudo mount -t tmpfs ramfs /tmp/m ");
 
 
   cout << "Extracting ORB features..." << endl;
@@ -113,13 +115,13 @@ void loadFeatures(vector<vector<cv::Mat > > &features)
     ss << "f" << i << ".jpg";
 
     //cv::Mat image = cv::imread(ss.str(), 0);
-   cv::Mat image = cv::imread(ss.str(), cv::IMREAD_COLOR);
+ //   cv::Mat image = cv::imread(ss.str(), cv::IMREAD_COLOR);
 
-//      std::string str = ss.str();
+      std::string str = ss.str();
     // Obtener un puntero const char* directamente
-//	convertir(str.c_str());
+	convertir(str.c_str());
 //	cv::Mat image = cv::imread("/tmp/output.png", 0);
-//	cv::Mat image = cv::imread("/tmp/m/output.png", cv::IMREAD_COLOR);
+	cv::Mat image = cv::imread("/tmp/m/output.png", cv::IMREAD_COLOR);
 
 
 
@@ -138,8 +140,14 @@ void loadFeatures(vector<vector<cv::Mat > > &features)
 
 
         // Dibujar los puntos clave en la imagen
-//    cv::Mat image_with_keypoints;
- //   drawKeypoints(image, keypoints, image_with_keypoints, cv::Scalar::all(-1), cv::DrawMatchesFlags::DEFAULT);
+    cv::Mat image_with_keypoints;
+    drawKeypoints(image, keypoints, image_with_keypoints, cv::Scalar::all(-1), cv::DrawMatchesFlags::DEFAULT);
+
+    
+    
+
+
+
 
     // Mostrar la imagen con los puntos clave detectados
 //   cv::namedWindow("ORB Keypoints", cv::WINDOW_NORMAL);
@@ -176,8 +184,8 @@ void testVocCreation(const vector<vector<cv::Mat > > &features)
   //const int k = 9;
   //const int L = 3;
   // const int k = 15;
-  const int k = 50;
-  const int L = 3;
+  const int k = 30;
+  const int L = 5;
   const WeightingType weight = TF_IDF;
   const ScoringType scoring = L1_NORM;
 
@@ -226,7 +234,7 @@ void testVocCreation(const vector<vector<cv::Mat > > &features)
 		}
 		if (arbol == arbol_prev) {
 			varios++;
-			if (varios>=4) {
+			if (varios>=3) {
   				cout << " arbol " << i << " coincide con " << arbol << endl;
 			};
 		} else {
