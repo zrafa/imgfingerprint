@@ -9,6 +9,7 @@
 #include <iostream>
 #include <vector>
 #include <fstream>
+#include <chrono>
 
 // DBoW2
 #include "DBoW2.h" // defines OrbVocabulary and OrbDatabase
@@ -34,7 +35,7 @@ using namespace std;
 
 void loadFeatures(vector<vector<cv::Mat > > &features);
 void changeStructure(const cv::Mat &plain, vector<cv::Mat> &out);
-void fingerprint_by_images(const vector<vector<cv::Mat > > &features);
+void fingerprint_by_images(vector<vector<cv::Mat > > &features);
 
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
@@ -78,8 +79,8 @@ int main()
 
 void loadFeatures(vector<vector<cv::Mat > > &features)
 {
-  features.clear();
-  features.reserve(NIMAGES);
+	features.clear();
+	features.reserve(NIMAGES);
 
   //cv::Ptr<cv::ORB> orb = cv::ORB::create(8000);
   // ULTIMO MUY BIEN cv::Ptr<cv::ORB> orb = cv::ORB::create(200, 1.01, 15, 85, 2, 4, cv::ORB::HARRIS_SCORE, 75);
@@ -93,7 +94,8 @@ void loadFeatures(vector<vector<cv::Mat > > &features)
 	cout << "Extracting ORB features..." << endl;
 	for(int i = 0; i < 79; ++i) {
 		stringstream ss;
-		ss << "f" << i << ".jpg";
+		// ss << "f" << i << ".jpg";
+		ss << "f0.jpg";
 
 		cv::Mat image = cv::imread(ss.str(), cv::IMREAD_COLOR);
 
@@ -106,6 +108,7 @@ void loadFeatures(vector<vector<cv::Mat > > &features)
 		changeStructure(descriptors, features.back());
 	}
 
+	/*
 	for(int i = 80; i < NIMAGES; ++i) {
 		stringstream ss;
 		ss << "f" << i << ".jpg";
@@ -132,6 +135,7 @@ void loadFeatures(vector<vector<cv::Mat > > &features)
 		features.push_back(vector<cv::Mat >());
 		changeStructure(descriptors, features.back());
 	}
+	*/
 }
 
 // ----------------------------------------------------------------------------
@@ -176,7 +180,7 @@ std::vector<BowVector> loadBowVectors(const std::string& filename) {
 // ----------------------------------------------------------------------------
 // ----------------------------------------------------------------------------
 
-void fingerprint_by_images(const vector<vector<cv::Mat > > &features)
+void fingerprint_by_images(vector<vector<cv::Mat > > &features)
 {
 	// branching factor and depth levels 
 	// const int k = 9;
@@ -205,6 +209,11 @@ void fingerprint_by_images(const vector<vector<cv::Mat > > &features)
 	std::vector<BowVector> bowVectors = loadBowVectors("db_bowvectors1.dat");
 
 
+	// otra vez usaremos orb
+	cv::Ptr<cv::ORB> orb = cv::ORB::create(200, 1.01, 3, 65, 2, 4, cv::ORB::HARRIS_SCORE, 45);
+
+
+
 	// vemos si podemos encontrar el arbol
 
   	int i, j;
@@ -213,11 +222,45 @@ void fingerprint_by_images(const vector<vector<cv::Mat > > &features)
 	int varios = 0;
   	double score; double ac; double total; int kk;
   	BowVector v1, v2;
+	std::chrono::time_point<std::chrono::high_resolution_clock> start;
 	for (i=80; i<1200; i++) {
+
+		// Captura el tiempo final
+		auto end = std::chrono::high_resolution_clock::now();
+		// Calcula la duración
+		std::chrono::duration<double> duration = end - start;
+		// Imprime la duración en segundos
+		std::cout << "Tiempo transcurrido foto : " << i-1 << "  " << duration.count() << " segundos" << std::endl;
+		// Inicia un nuevo cronometro
+		start = std::chrono::high_resolution_clock::now();
+
+
+		// cargar image y obtener puntos claves y descriptores
+
+		stringstream ss;
+		ss << "f" << i << ".jpg";
+
+		cv::Mat image = cv::imread(ss.str(), cv::IMREAD_COLOR);
+
+		cv::Mat mask;
+		vector<cv::KeyPoint> keypoints;
+		cv::Mat descriptors;
+
+		orb->detectAndCompute(image, mask, keypoints, descriptors);
+
+		features.push_back(vector<cv::Mat >());
+		changeStructure(descriptors, features.back());
+
+		
+
+
+
 		ac=0; kk=0; total=0;
 		for (j=0; j<79; j++) {
-    			voc.transform(features[i], v1);
+    			//voc.transform(features[i], v1);
+    			voc.transform(features.back(), v1);
 			score = voc.score(v1, bowVectors[j]);
+			//cout << "score " << i << " " << j << "  " << score << endl; 
 			ac = ac + score;
 			kk++;
 			if (kk == 5) {
