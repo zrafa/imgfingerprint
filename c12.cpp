@@ -26,10 +26,6 @@ int main(int argc, char** argv) {
     Mat gray;
     cvtColor(img, gray, COLOR_BGR2GRAY);
 
-    imshow("Resultado", img);
-    cv::waitKey(1);
-    std::this_thread::sleep_for(std::chrono::milliseconds(100));
-
     // Aplicar un filtro Gaussiano para reducir el ruido
     Mat blurred;
     GaussianBlur(gray, blurred, Size(5, 5), 2);
@@ -48,7 +44,8 @@ int main(int argc, char** argv) {
         double dx = abs(l[2] - l[0]);
         double dy = abs(l[3] - l[1]);
         double angle = atan2(dy, dx) * 180 / CV_PI;
-        if (angle > 75 && angle < 105 && dy > 50) {
+        //if (angle > 75 && angle < 105 && dy > 50) {
+        if (angle > 65 && angle < 115 && dy > 50) {
             verticalLines.push_back(l);
         }
     }
@@ -61,8 +58,7 @@ int main(int argc, char** argv) {
         meanStdDev(column, mean, stddev);
 
         // Si la desviación estándar es baja, hay poca variación vertical
-        // if (stddev[0] < 15) {  // Ajustar umbral según el resultado
-        if (stddev[0] < 20) {  // Ajustar umbral según el resultado
+        if (stddev[0] < 20) {
             lowVarianceColumns.push_back(x);
         }
     }
@@ -71,15 +67,15 @@ int main(int argc, char** argv) {
     sort(lowVarianceColumns.begin(), lowVarianceColumns.end());
 
     vector<pair<int, int>> regions;
-    if (lowVarianceColumns.empty()) { 
-	    cout << "no hay tronco" << endl;
-	    return 0;
+    if (lowVarianceColumns.empty()) {
+        cout << "No se encontró un tronco claro" << endl;
+        return 0;
     }
 
     int start = lowVarianceColumns[0];
     int end = start;
     for (size_t i = 1; i < lowVarianceColumns.size(); ++i) {
-        if (lowVarianceColumns[i] - end <= 5) {  // Si las columnas están cerca
+        if (lowVarianceColumns[i] - end <= 5) {
             end = lowVarianceColumns[i];
         } else {
             regions.push_back(make_pair(start, end));
@@ -105,8 +101,31 @@ int main(int argc, char** argv) {
     // Calcular el centro de la región más densa
     double centerX = (bestRegionStart + bestRegionEnd) / 2.0;
     if (centerX == 0) {
-	    cout << "no hay tronco" << endl;
-	    return 0;
+        cout << "No se encontró un tronco claro" << endl;
+        return 0;
+    }
+
+    // **NUEVA PARTE**: Mejorar detección de yuyos con segmentación de color
+    int yStart = img.rows * 0.8;  // Analizar el último 20% de la imagen
+    Mat bottomRegion = img(Range(yStart, img.rows), Range(bestRegionStart, bestRegionEnd));
+
+    // Convertir a espacio de color HSV
+    Mat hsv;
+    cvtColor(bottomRegion, hsv, COLOR_BGR2HSV);
+
+    // Rango para color verde de los yuyos
+    Scalar lowerGreen(35, 40, 40);  // Umbral inferior
+    Scalar upperGreen(85, 255, 255);  // Umbral superior
+
+    Mat mask;
+    inRange(hsv, lowerGreen, upperGreen, mask);
+
+    // Calcular la proporción de píxeles verdes
+    double greenRatio = (double)countNonZero(mask) / (mask.rows * mask.cols);
+
+    if (greenRatio > 0.2) {  // Ajustar umbral según resultados
+        cout << "Yuyos detectados debajo del tronco, posible falso positivo." << endl;
+        return 0;
     }
 
     // Dibujar líneas y centro en la imagen
@@ -116,8 +135,20 @@ int main(int argc, char** argv) {
     circle(img, Point(centerX, img.rows / 2), 5, Scalar(0, 0, 255), -1);
     cout << "Coordenada X aproximada del centro del tronco: " << centerX << endl;
 
-    imshow("Resultado", img);
+        // Calcular límites del recorte
+    int xLeft = max(0, (int)(centerX - 100));
+    int xRight = min(img.cols, (int)(centerX + 100));
+
+    // Recortar la imagen
+    Rect roi(xLeft, 0, xRight - xLeft, img.rows);
+    Mat croppedImg = img(roi);
+
+    // Mostrar la imagen recortada
+    imshow("Imagen Recortada", croppedImg);
     waitKey(0);
+
+//    imshow("Resultado", img);
+//    waitKey(0);
 
     return 0;
 }
