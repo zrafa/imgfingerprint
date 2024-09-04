@@ -35,7 +35,7 @@ using namespace std;
 
 // number of training images
 const int NIMAGES = 1262;
-#define MARGEN 200
+#define MARGEN 100
 
 
 // ------------------------------------------------------------------------------------------------
@@ -311,7 +311,8 @@ void loadFeatures(vector<vector<cv::Mat > > &features)
   // cv::Ptr<cv::ORB> orb = cv::ORB::create(200, 1.01, 9, 55, 2, 2, cv::ORB::HARRIS_SCORE, 85);
   // BIEN cv::Ptr<cv::ORB> orb = cv::ORB::create(200, 1.01, 5, 90, 1, 2, cv::ORB::HARRIS_SCORE, 30);
   // EL MEJOR! BUEN PERFORMANCE cv::Ptr<cv::ORB> orb = cv::ORB::create(200, 1.01, 3, 65, 2, 4, cv::ORB::HARRIS_SCORE, 45);
-  cv::Ptr<cv::ORB> orb = cv::ORB::create(400, 1.01, 3, 65, 2, 4, cv::ORB::HARRIS_SCORE, 45);
+  //cv::Ptr<cv::ORB> orb = cv::ORB::create(300, 1.01, 3, 65, 2, 4, cv::ORB::HARRIS_SCORE, 45);
+  cv::Ptr<cv::ORB> orb = cv::ORB::create(400, 1.01, 15, 85, 2, 4, cv::ORB::HARRIS_SCORE, 75);
 
 	cout << "Extracting ORB features..." << endl;
 	for(int i = 0; i < 79; ++i) {
@@ -418,7 +419,8 @@ void fingerprint_by_images(vector<vector<cv::Mat > > &features)
 	OrbVocabulary voc(k, L, weight, scoring);
 	// voc.create(features);
 	//OrbVocabulary voc;
-	voc.load("db_vocabulary1.yml.gz");  // Cargar el vocabulario guardado
+	//voc.load("db_vocabulary1.yml.gz");  // Cargar el vocabulario guardado
+	voc.load("db_vocabulary1.yml");  // Cargar el vocabulario guardado
 
 	cout << "... done!" << endl;
 
@@ -433,7 +435,8 @@ void fingerprint_by_images(vector<vector<cv::Mat > > &features)
 
 
 	// otra vez usaremos orb
-	cv::Ptr<cv::ORB> orb = cv::ORB::create(400, 1.01, 3, 65, 2, 4, cv::ORB::HARRIS_SCORE, 45);
+	//cv::Ptr<cv::ORB> orb = cv::ORB::create(300, 1.01, 3, 65, 2, 4, cv::ORB::HARRIS_SCORE, 45);
+  	cv::Ptr<cv::ORB> orb = cv::ORB::create(400, 1.01, 15, 85, 2, 4, cv::ORB::HARRIS_SCORE, 75);
 
 
 
@@ -498,8 +501,8 @@ void fingerprint_by_images(vector<vector<cv::Mat > > &features)
     if (!recortar_tronco(image, image)) {
 		    continue;
     }
-       cv::imshow("ORB Keypoints", image);
-       cv::waitKey(0);
+       //cv::imshow("ORB Keypoints", image);
+       //cv::waitKey(0);
 
 
 

@@ -36,7 +36,7 @@ using namespace std;
 
 // number of training images
 const int NIMAGES = 79;
-#define MARGEN 200
+#define MARGEN 100
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
 
@@ -316,7 +316,8 @@ void loadFeatures(vector<vector<cv::Mat > > &features)
   // EL MEJOR! BUEN PERFORMANCE cv::Ptr<cv::ORB> orb = cv::ORB::create(200, 1.01, 3, 65, 2, 4, cv::ORB::HARRIS_SCORE, 45);
   // ULTIMO MUY BIEN cv::Ptr<cv::ORB> orb = cv::ORB::create(200, 1.01, 15, 85, 2, 4, cv::ORB::HARRIS_SCORE, 75);
   //
-  cv::Ptr<cv::ORB> orb = cv::ORB::create(400, 1.01, 3, 65, 2, 4, cv::ORB::HARRIS_SCORE, 45);
+  //cv::Ptr<cv::ORB> orb = cv::ORB::create(300, 1.01, 3, 65, 2, 4, cv::ORB::HARRIS_SCORE, 45);
+  cv::Ptr<cv::ORB> orb = cv::ORB::create(400, 1.01, 15, 85, 2, 4, cv::ORB::HARRIS_SCORE, 75);
 
 	// montamos el ram fs
 	// system("mkdir /tmp/m");
@@ -434,7 +435,8 @@ void saveBowVectors(const vector<vector<cv::Mat > > &features, const std::string
 	}
 
 	// Guardar vocabulario
-	voc.save("db_vocabulary1.yml.gz");  // Guardar en un archivo comprimido
+	//voc.save("db_vocabulary1.yml.gz");  // Guardar en un archivo comprimido
+	voc.save("db_vocabulary1.yml");  // Guardar en un archivo comprimido
 
 
 	// Guardar los BowVectors en un archivo
