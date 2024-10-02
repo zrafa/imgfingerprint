@@ -36,7 +36,7 @@ using namespace std;
 
 // number of training images
 const int NIMAGES = 79;
-#define MARGEN 100
+#define MARGEN 200
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
 
@@ -317,7 +317,8 @@ void loadFeatures(vector<vector<cv::Mat > > &features)
   // ULTIMO MUY BIEN cv::Ptr<cv::ORB> orb = cv::ORB::create(200, 1.01, 15, 85, 2, 4, cv::ORB::HARRIS_SCORE, 75);
   //
   //cv::Ptr<cv::ORB> orb = cv::ORB::create(300, 1.01, 3, 65, 2, 4, cv::ORB::HARRIS_SCORE, 45);
-  cv::Ptr<cv::ORB> orb = cv::ORB::create(400, 1.01, 15, 85, 2, 4, cv::ORB::HARRIS_SCORE, 75);
+  //cv::Ptr<cv::ORB> orb = cv::ORB::create(400, 1.01, 15, 85, 2, 4, cv::ORB::HARRIS_SCORE, 75);
+  cv::Ptr<cv::ORB> orb = cv::ORB::create(400, 1.01, 3, 65, 2, 4, cv::ORB::HARRIS_SCORE, 45);
 
 	// montamos el ram fs
 	// system("mkdir /tmp/m");
