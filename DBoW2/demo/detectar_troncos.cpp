@@ -35,7 +35,7 @@ using namespace std;
 
 // number of training images
 const int NIMAGES = 1262;
-#define MARGEN 100
+#define MARGEN 150
 
 
 // ------------------------------------------------------------------------------------------------
@@ -223,6 +223,8 @@ void buscar_troncos()
 		if (!recortar_tronco(image, image)) {
 			continue;
 		}
+
+                std::cout << "tronco detectado. " << ss.str() << std::endl;
 		cv::imshow("ORB Keypoints", image);
 		cv::waitKey(0);
 
