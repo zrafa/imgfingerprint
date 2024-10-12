@@ -133,7 +133,7 @@ bool recortar_tronco(const cv::Mat& img, cv::Mat& recortada)
 			cout << "No se encontró un tronco claro" << endl;
 			return false;
 		}
-		cout << " centerx " << centerX << endl << flush ;
+		cout << " centerx " << centerX << flush ;
 	}
 
 	// Ajustar los límites de recorte para mantener 
@@ -203,7 +203,7 @@ void buscar_troncos()
                 // Calcula la duración
                 std::chrono::duration<double> duration = end - start;
                 // Imprime la duración en segundos
-                std::cout << "Tiempo transcurrido foto : " << i-1 << "  " << duration.count() << " segundos" << std::endl;
+                std::cout << " Tiempo transcurrido foto : " << i-1 << "  " << duration.count() << " segundos" << std::endl;
                 // Inicia un nuevo cronometro
                 start = std::chrono::high_resolution_clock::now();
 
@@ -224,9 +224,9 @@ void buscar_troncos()
 			continue;
 		}
 
-                std::cout << "tronco detectado. " << ss.str() << std::endl;
-		cv::imshow("ORB Keypoints", image);
-		cv::waitKey(0);
+                std::cout << " :tronco detectado. " << ss.str(); 
+		// cv::imshow("ORB Keypoints", image);
+		// cv::waitKey(0);
 
 	}
 }
