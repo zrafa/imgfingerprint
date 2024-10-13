@@ -49,7 +49,9 @@ bool recortar_tronco(const cv::Mat& img, cv::Mat& recortada)
 
 	// Convertir a escala de grises
 	cv::Mat gray;
-	gray = img;
+	cv::Rect roi2(0, 0, img.cols, img.rows-50);
+	gray = img(roi2);
+	//gray = img;
 
 	// Aplicar un filtro Gaussiano para reducir el ruido
 	cv::Mat blurred;
@@ -87,7 +89,8 @@ bool recortar_tronco(const cv::Mat& img, cv::Mat& recortada)
 
 		// Si la desviación estándar es baja, hay poca variación vertic
 		// RAFA if (stddev[0] < 20) {
-		if (stddev[0] < 10) {
+		// RAFA MUY BUENO if (stddev[0] < 10) {
+		if (stddev[0] < 15) {
 			lowVarianceColumns.push_back(x);
 		}
 	}
@@ -97,9 +100,10 @@ bool recortar_tronco(const cv::Mat& img, cv::Mat& recortada)
 
 	vector<pair<int, int>> regions;
 	if (lowVarianceColumns.empty()) {
-		cout << "No se encontró un tronco claro" << endl;
+		cout << "No se encontró un tronco claro color" << endl;
 		return false; // Indicar error
-	} else {
+	};
+      // 	else {
 
 		int start = lowVarianceColumns[0];
 		int end = start;
@@ -129,12 +133,13 @@ bool recortar_tronco(const cv::Mat& img, cv::Mat& recortada)
 
 		// Calcular el centro de la región más densa
 		centerX = (bestRegionStart + bestRegionEnd) / 2.0;
-		if (centerX == 0) {
+		// RAFA para nuevas pruebas if (centerX == 0) {
+		if ((centerX == 0) || (centerX < 250) || (centerX > 614) ) {
 			cout << "No se encontró un tronco claro" << endl;
 			return false;
 		}
 		cout << " centerx " << centerX << flush ;
-	}
+//	}
 
 	// Ajustar los límites de recorte para mantener 
 	// el punto rojo en el centro
@@ -194,6 +199,7 @@ void buscar_troncos()
 
 	// vemos si podemos encontrar el arbol
 
+	int total = 0;
   	int i;
 	std::chrono::time_point<std::chrono::high_resolution_clock> start;
 	for (i=0; i<numero; i++) {
@@ -221,10 +227,12 @@ void buscar_troncos()
 		}
 
 		if (!recortar_tronco(image, image)) {
+			total = 0;
 			continue;
 		}
-
-                std::cout << " :tronco detectado. " << ss.str(); 
+		total++;
+		if (total >= 3)
+                	std::cout << " :tronco detectado. " << ss.str(); 
 		// cv::imshow("ORB Keypoints", image);
 		// cv::waitKey(0);
 
