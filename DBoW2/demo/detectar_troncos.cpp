@@ -232,7 +232,7 @@ void buscar_troncos()
 		}
 		total++;
 		if (total >= 3)
-                	std::cout << " :tronco detectado. " << ss.str(); 
+                	std::cout << " :tronco detectado. " << total << " " << ss.str(); 
 		// cv::imshow("ORB Keypoints", image);
 		// cv::waitKey(0);
 
