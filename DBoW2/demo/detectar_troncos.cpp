@@ -11,6 +11,11 @@
 #include <fstream>
 #include <chrono>
 
+#include <sstream>
+#include <cmath>
+#include <limits>
+
+
 // DBoW2
 #include "DBoW2.h" // defines OrbVocabulary and OrbDatabase
 
@@ -38,12 +43,256 @@ const int NIMAGES = 1262;
 #define MARGEN 200
 
 
+
+
+
+
+// Estructura para almacenar la información del lidar
+struct LidarData {
+    int distancia;
+    int tiempo_ms;
+    long long tiempo_us;
+};
+
+    // Leer los datos del archivo lidar.txt
+    //std::vector<LidarData> datosLidar = leerDatosLidar("lidar.txt");
+std::vector<LidarData> datosLidar;
+
+
+// Función para leer los datos del archivo lidar.txt
+std::vector<LidarData> leerDatosLidar(const std::string& nombreArchivo) {
+    std::vector<LidarData> datos;
+    std::ifstream archivo(nombreArchivo);
+    std::string linea;
+
+    while (std::getline(archivo, linea)) {
+        std::stringstream ss(linea);
+        std::string token;
+        LidarData data;
+
+        // Ignorar el primer campo (000:distancia:tiempo)
+        std::getline(ss, token, ' ');
+
+        // Leer marca de tiempo en us
+        ss >> data.tiempo_us;
+        // Leer marca de tiempo en ms
+        ss >> data.tiempo_ms;
+
+        // Separar el campo "distancia" del primero
+        std::string campo_distancia = linea.substr(4, linea.find(':', 4) - 4);
+        data.distancia = std::stoi(campo_distancia);
+
+        datos.push_back(data);
+    }
+    return datos;
+}
+
+
+long long buscarDistanciaCercana(long long marcaTiempo_us) {
+    std::ifstream archivo("lidar.txt");
+    std::string linea;
+    long long marcaTiempoMasCercana = 0;
+    int distanciaMasCercana = 400;  // Valor por defecto si no se encuentra una distancia válida
+    long long diferenciaMinima = LLONG_MAX;
+
+    while (std::getline(archivo, linea)) {
+        std::stringstream ss(linea);
+        std::string campo1, campo2, campo3;
+        long long marcaTiempoLidar_us;
+        int distancia;
+        int tiempoMs;
+
+        // Parsear la línea
+        ss >> campo1 >> marcaTiempoLidar_us >> campo3;
+
+        // Extraer la distancia y el tiempo desde el primer campo
+        std::stringstream ss_campo1(campo1);
+        std::string aux;
+        std::getline(ss_campo1, aux, ':');  // 000
+        std::getline(ss_campo1, aux, ':');  // 00102 (distancia)
+        distancia = std::stoi(aux);
+        std::getline(ss_campo1, aux, ':');  // 000002 (tiempo de demora)
+        tiempoMs = std::stoi(aux);
+
+        // Calcular la diferencia de tiempo entre la marca de tiempo buscada y la del archivo
+        long long diferencia = std::abs(marcaTiempo_us - marcaTiempoLidar_us);
+
+        // Si es la marca de tiempo más cercana hasta ahora
+        if (diferencia < diferenciaMinima) {
+            diferenciaMinima = diferencia;
+            marcaTiempoMasCercana = marcaTiempoLidar_us;
+
+            // Aplicar la condición de distancia y tiempo
+            if (distancia < 200 && tiempoMs > 10) {
+                distanciaMasCercana = 400;
+            } else {
+                distanciaMasCercana = distancia;
+            }
+        }
+    }
+
+    archivo.close();
+    return distanciaMasCercana;
+}
+
+
+/*
+// Función para buscar la distancia más cercana dada una marca de tiempo
+int buscarDistanciaCercana(const std::vector<LidarData>& datos, long long tiempo_us) {
+    int distanciaCercana = -1;
+    long long menorDiferencia = std::numeric_limits<long long>::max();
+
+    for (const auto& dato : datos) {
+        long long diferencia = std::abs(dato.tiempo_us - tiempo_us);
+
+        if (diferencia < menorDiferencia) {
+            menorDiferencia = diferencia;
+            // Aplicar la regla de distancia
+            if (dato.distancia < 200 && dato.tiempo_ms > 10) {
+                distanciaCercana = 400;  // Reemplazar por 400 cm
+            } else {
+                distanciaCercana = dato.distancia;
+            }
+        }
+    }
+
+    return distanciaCercana;
+}
+*/
+
+
+
+
 // ------------------------------------------------------------------------------------------------
 
-void encontrar_bordes(const cv::Mat& img) 
+void encontrar_bordes(const cv::Mat& img, long long marca_tiempo) 
 {
 
         cv::Mat gray = img;
+
+	    // Obtener las dimensiones de la imagen
+    int rows = gray.rows;
+    int cols = gray.cols;
+
+    // Columna central
+    int centralCol = cols / 2;
+
+
+
+
+    // Umbral de diferencia para la homogeneidad de los píxeles
+    double umbralHomogeneidad = 15.0; // Ajustar este valor según la imagen
+
+    // Función para calcular la media de gris de una columna
+    auto calcularMediaColumna = [&](int col) {
+        double suma = 0.0;
+        for (int i = 0; i < rows; i++) {
+            suma += gray.at<uchar>(i, col);
+        }
+        return suma / rows;
+    };
+
+    // Media de la columna central
+    double mediaCentral = calcularMediaColumna(centralCol);
+
+    // Función para verificar si una columna es homogénea comparando con su media
+    auto esColumnaHomogenea = [&](int col, double mediaColumna, double umbral) {
+        int countSimilar = 0;
+        for (int i = 0; i < rows; i++) {
+            if (std::abs(gray.at<uchar>(i, col) - mediaColumna) < umbral) {
+                countSimilar++;
+            }
+        }
+        std::cout << "columna central :" << countSimilar*100/rows << std::endl;
+        // Verificar si al menos el 70% de los píxeles son similares a la media
+        return (countSimilar > 0.8 * rows);
+    };
+
+    // Verificar si la columna central es homogénea
+ //   if (!esColumnaHomogenea(centralCol, mediaCentral, umbralHomogeneidad)) {
+  //      std::cout << "La columna central no es homogénea, por lo tanto, no parece ser un tronco." << std::endl;
+//	return;
+ //   }
+
+    // int distancia = buscarDistanciaCercana(datosLidar, marca_tiempo);
+    int distancia = buscarDistanciaCercana(marca_tiempo);
+
+    if (distancia > 200) {
+        std::cout << "Distancia lejana: ." << distancia << " MARCA TIEMPO: " << marca_tiempo << std::endl;
+	return;
+    }
+
+    // Umbral para la diferencia de nivel de gris entre píxeles
+    double umbral = 15.0; // Ajustar según el contraste de la imagen
+
+    // Función para calcular la media de gris entre dos píxeles
+    auto diferenciaPixel = [&](int fila, int col1, int col2) {
+        return std::abs(gray.at<uchar>(fila, col1) - gray.at<uchar>(fila, col2));
+    };
+
+    // Función para verificar si más del 50% de los píxeles de la columna difieren de la columna adyacente
+    auto columnaEsBorde = [&](int col1, int col2) {
+        int countDiff = 0;
+        for (int i = 0; i < rows; i++) {
+            if (diferenciaPixel(i, col1, col2) > umbral) {
+                countDiff++;
+            }
+        }
+        // Verificar si más del 50% de los píxeles son diferentes
+        return (countDiff > (50*rows/100));
+    };
+
+    int bordeIzquierdo = -1;
+    int bordeDerecho = -1;
+
+    // Buscar borde izquierdo desde la columna central hacia la izquierda
+    for (int col = centralCol - 1; col > 0; col--) {
+        //if (columnaEsBorde(col, col + 1)) {
+        if (columnaEsBorde(col, centralCol)) {
+            bordeIzquierdo = col;
+            break;
+        }
+    }
+
+    // Buscar borde derecho desde la columna central hacia la derecha
+    for (int col = centralCol + 1; col < cols - 1; col++) {
+        //if (columnaEsBorde(col, col - 1)) {
+        if (columnaEsBorde(col, centralCol)) {
+            bordeDerecho = col;
+            break;
+        }
+    }
+
+    // Mostrar los resultados
+    if (bordeIzquierdo != -1 && bordeDerecho != -1) {
+        std::cout << "Borde izquierdo detectado en x: " << bordeIzquierdo << std::endl;
+        std::cout << "Borde derecho detectado en x: " << bordeDerecho << std::endl;
+        std::cout << "Distancia:  " << distancia << std::endl;
+
+	        // Dibujar las líneas de los bordes en la imagen
+        cv::Mat result;
+        cv::cvtColor(gray, result, cv::COLOR_GRAY2BGR);  // Convertir a BGR para dibujar en color
+        cv::line(result, cv::Point(bordeIzquierdo, 0), cv::Point(bordeIzquierdo, rows), cv::Scalar(0, 0, 255), 2);  // Línea roja para el borde izquierdo
+        cv::line(result, cv::Point(bordeDerecho, 0), cv::Point(bordeDerecho, rows), cv::Scalar(0, 255, 0), 2);  // Línea verde para el borde derecho
+
+        // Mostrar la imagen con los bordes detectados
+        cv::imshow("Bordes del tronco detectados", result);
+        cv::waitKey(0);
+    } else {
+        std::cout << "No se detectaron los bordes del tronco." << std::endl;
+    }
+
+
+
+
+
+
+
+
+
+
+    /*
+
     // Obtener el tamaño de la imagen
     int rows = gray.rows;
     int cols = gray.cols;
@@ -115,6 +364,7 @@ void encontrar_bordes(const cv::Mat& img)
     } else {
         std::cout << "No se detectaron los bordes del tronco." << std::endl;
     }
+    */
 
 }
 
@@ -256,6 +506,7 @@ void buscar_troncos();
 
 int main()
 {
+datosLidar = leerDatosLidar("lidar.txt");
   buscar_troncos();
 
   return 0;
@@ -307,6 +558,16 @@ void buscar_troncos()
 			exit(1);
 		}
 
+
+    std::string nombreArchivo = ss.str();
+    // Encontrar la posición del punto para eliminar la extensión
+    size_t pos = nombreArchivo.find(".jpg");
+    // Extraer la parte del nombre sin la extensión
+    std::string marcaTiempoStr = nombreArchivo.substr(0, pos);
+    // Convertir el string a long long
+    long long marcaTiempo = std::stoll(marcaTiempoStr);
+
+    
 		if (!recortar_tronco(image, image)) {
 			total = 0;
 			continue;
@@ -314,10 +575,10 @@ void buscar_troncos()
 		total++;
 		if (total >= 3) {
                 	std::cout << " :tronco detectado. " << total << " " << ss.str(); 
-			encontrar_bordes(image);
+			encontrar_bordes(image, marcaTiempo);
 		}
-		cv::imshow("ORB Keypoints", image);
-		cv::waitKey(0);
+		// cv::imshow("ORB Keypoints", image);
+		// cv::waitKey(0);
 
 	}
 }

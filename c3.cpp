@@ -1,125 +1,87 @@
 
-#include <iostream>
-
 #include <opencv2/opencv.hpp>
-#include <opencv2/features2d.hpp>
-
-int en_tronco(cv::Ptr<cv::ORB> orb, const cv::Mat& image, const cv::Mat& mask, std::vector<cv::KeyPoint>& keypoints, cv::Mat& descriptors, int x1, int x2, int porc) {
-	int cant, total;
-	int ii;
-
-    // Usar el ORB para detectar y computar los descriptores
-    orb->detectAndCompute(image, mask, keypoints, descriptors);
-
-	cant=0;
-	total=0;
-	// Recorrer los keypoints y obtener sus coordenadas
-    	for (ii = 0; ii < keypoints.size(); ++ii) {
-		total++;
-        	float x = keypoints[ii].pt.x;
-		if ((x>=x1) && (x<=x2))
-			cant++;
-    	}
-	std::cout << x1 << " total " << total << " cant " << cant << std::endl;
-	if (cant >= (porc*total/100)) 
-		return 1;
-
-	return 0;
-}
-
+#include <iostream>
+#include <cmath>
 
 int main() {
-    // Cargar la imagen
-    cv::Mat image = cv::imread("tronco5.png", cv::IMREAD_COLOR);
-    cv::Mat image2 = cv::imread("tronco2.jpg", cv::IMREAD_COLOR);
-    cv::Mat image3 = cv::imread("tronco4.png", cv::IMREAD_COLOR);
-
-    if (image.empty()) {
-        std::cerr << "No se pudo cargar la imagen." << std::endl;
+    // Leer la imagen en escala de grises
+    cv::Mat gray = cv::imread("tronco.jpg", cv::IMREAD_GRAYSCALE);
+    if (gray.empty()) {
+        std::cout << "No se pudo abrir la imagen." << std::endl;
         return -1;
     }
 
-    cv::Mat mask;
+    // Obtener el tamaño de la imagen
+    int rows = gray.rows;
+    int cols = gray.cols;
 
-    // Inicializar ORB
-    cv::Ptr<cv::ORB> orb = cv::ORB::create();
+    // Columna central
+    int centralCol = cols / 2;
 
-    // Detectar y computar descriptores
-    std::vector<cv::KeyPoint> keypoints;
-    cv::Mat descriptors;
+    // Calcular la media de grises de la columna central
+    double centralMean = 0.0;
+    for (int i = 0; i < rows; i++) {
+        centralMean += gray.at<uchar>(i, centralCol);
+    }
+    centralMean /= rows;
 
+    std::cout << "Media de la columna central: " << centralMean << std::endl;
 
-    int cant, total, ii;
+    // Función para calcular la media de grises de una columna
+    auto calcularMediaColumna = [&](int col) {
+        double mean = 0.0;
+        for (int i = 0; i < rows; i++) {
+            mean += gray.at<uchar>(i, col);
+        }
+        return mean / rows;
+    };
 
+    // Umbral de diferencia para considerar que los colores no coinciden
+    double umbral = 10.0;  // Ajustar este valor según la imagen
 
+    // Buscar los bordes hacia la izquierda y derecha
+    int bordeIzquierdo = -1;
+    int bordeDerecho = -1;
 
-    // Ajuste sistemático de los parámetros de BRISK
-    for (int thresh = 5; thresh <= 70; thresh += 5) {         // Rango y pasos para el umbral
-        for (int octaves = 1; octaves <= 5; octaves++) {         // Rango y pasos para octavas
-            for (float patternScale = 0.0f; patternScale <= 2.0f; patternScale += 0.1f) { // Rango y pasos para escala del patrón
+    // Buscar hacia la izquierda
+    for (int col = centralCol - 1; col >= 0; col--) {
+        double mediaColumna = calcularMediaColumna(col);
+        double mediaColumnaSiguiente = calcularMediaColumna(col - 1);
 
-                // Crear el detector BRISK con los parámetros específicos
-                cv::Ptr<cv::BRISK> brisk = cv::BRISK::create(thresh, octaves, patternScale);
-
-                // Detectar y calcular descriptores
-                brisk->detectAndCompute(image, cv::noArray(), keypoints, descriptors);
-
-                // Mostrar resultados
-                //std::cout << "BRISK detectó " << keypoints.size() << " keypoints con los siguientes parámetros:\n"
-                 //         << "Threshold: " << thresh << ", Octaves: " << octaves
-                  //        << ", PatternScale: " << patternScale << std::endl;
-
-
-
-
-
-
-	cant=0;
-	total=0;
-	// Recorrer los keypoints y obtener sus coordenadas
-    	for (ii = 0; ii < keypoints.size(); ++ii) {
-		total++;
-        	float x = keypoints[ii].pt.x;
-		//if ((x>=120) && (x<=185))
-		if ((x>=126) && (x<=165))
-			cant++;
-    	}
-	std::cout << " total " << total << " cant " << cant << std::endl;
-	if ((total != 0) && (cant >= (50*total/100))) { 	// if cant es un 70%
-		//if (en_tronco(orb, image2, mask, keypoints, descriptors, 124, 184, 50)
-		//		&&
-		//en_tronco(orb, image3, mask, keypoints, descriptors, 144, 184, 50)) 		
-		//{
-
-                    // Mostrar o procesar resultados según necesidad
-                    std::cout << "brisk: " << thresh 
-                              << ", octaves " << octaves
-                              << ", pattern scale " << patternScale
-                              << std::endl;
-
-
-		// Dibujar los puntos clave
-		cv::Mat outputImage;
-		cv::drawKeypoints(image, keypoints, outputImage, cv::Scalar(0, 255, 0));
-
-		// Mostrar la imagen con los puntos clave
-		cv::imshow("Keypoints", outputImage);
-		cv::waitKey(0);
-		//}
-	}
-
-
-            }
+        if (std::abs(mediaColumna - centralMean) > umbral && std::abs(mediaColumnaSiguiente - centralMean) > umbral) {
+            bordeIzquierdo = col;
+            break;
         }
     }
 
-    // Dibujar los puntos clave
-    cv::Mat outputImage;
-    cv::drawKeypoints(image, keypoints, outputImage, cv::Scalar(0, 255, 0));
+    // Buscar hacia la derecha
+    for (int col = centralCol + 1; col < cols; col++) {
+        double mediaColumna = calcularMediaColumna(col);
+        double mediaColumnaSiguiente = calcularMediaColumna(col + 1);
 
-    // Mostrar la imagen con los puntos clave
-    cv::imshow("Keypoints", outputImage);
-    cv::waitKey(0);
+        if (std::abs(mediaColumna - centralMean) > umbral && std::abs(mediaColumnaSiguiente - centralMean) > umbral) {
+            bordeDerecho = col;
+            break;
+        }
+    }
+
+    // Mostrar los resultados
+    if (bordeIzquierdo != -1 && bordeDerecho != -1) {
+        std::cout << "Borde izquierdo detectado en x: " << bordeIzquierdo << std::endl;
+        std::cout << "Borde derecho detectado en x: " << bordeDerecho << std::endl;
+
+	        // Dibujar las líneas de los bordes en la imagen
+        cv::Mat result;
+        cv::cvtColor(gray, result, cv::COLOR_GRAY2BGR);  // Convertir a BGR para dibujar en color
+        cv::line(result, cv::Point(bordeIzquierdo, 0), cv::Point(bordeIzquierdo, rows), cv::Scalar(0, 0, 255), 2);  // Línea roja para el borde izquierdo
+        cv::line(result, cv::Point(bordeDerecho, 0), cv::Point(bordeDerecho, rows), cv::Scalar(0, 255, 0), 2);  // Línea verde para el borde derecho
+
+        // Mostrar la imagen con los bordes detectados
+        cv::imshow("Bordes del tronco detectados", result);
+        cv::waitKey(0);
+    } else {
+        std::cout << "No se detectaron los bordes del tronco." << std::endl;
+    }
 
     return 0;
 }

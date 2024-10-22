@@ -30,7 +30,7 @@ int en_tronco(cv::Ptr<cv::ORB> orb, const cv::Mat& image, const cv::Mat& mask, s
 
 int main() {
     // Cargar la imagen
-    cv::Mat image = cv::imread("tronco5.png", cv::IMREAD_COLOR);
+    cv::Mat image = cv::imread("tronco4.jpg", cv::IMREAD_COLOR);
     cv::Mat image2 = cv::imread("tronco2.jpg", cv::IMREAD_COLOR);
     cv::Mat image3 = cv::imread("tronco4.png", cv::IMREAD_COLOR);
 
@@ -71,6 +71,10 @@ int main() {
     	orb->detectAndCompute(image, mask, keypoints, descriptors);
 
 
+		cv::Mat outputImage2;
+		cv::drawKeypoints(image, keypoints, outputImage2, cv::Scalar(0, 255, 0));
+		//cv::imshow("Keypoints", outputImage2);
+		//cv::waitKey(0);
 	cant=0;
 	total=0;
 	// Recorrer los keypoints y obtener sus coordenadas
@@ -78,15 +82,22 @@ int main() {
 		total++;
         	float x = keypoints[ii].pt.x;
 		//if ((x>=120) && (x<=185))
-		if ((x>=126) && (x<=165))
+		//if ((x>=130) && (x<=270))
+		if ((x>=57) && (x<=84))
 			cant++;
     	}
+		// Dibujar los puntos clave
+		//cv::Mat outputImage;
+		//cv::drawKeypoints(image, keypoints, outputImage, cv::Scalar(0, 255, 0));
+		// Mostrar la imagen con los puntos clave
+		//cv::imshow("Keypoints", outputImage);
+		//cv::waitKey(0);
 	std::cout << " total " << total << " cant " << cant << std::endl;
-	if (cant >= (50*total/100)) { 	// if cant es un 70%
-		if (en_tronco(orb, image2, mask, keypoints, descriptors, 124, 184, 50)
-				&&
-		en_tronco(orb, image3, mask, keypoints, descriptors, 144, 184, 50)) 		
-		{
+	if (cant > (70*total/100) && (total > 20)) { 	// if cant es un 70%
+//		if (en_tronco(orb, image2, mask, keypoints, descriptors, 124, 184, 50)
+//				&&
+//		en_tronco(orb, image3, mask, keypoints, descriptors, 144, 184, 50)) 		
+//		{
 
 		std::cout << "cant:" << cant << " scalefactor " << i 
 			<< " nlevels " << j 
@@ -98,11 +109,10 @@ int main() {
 		// Dibujar los puntos clave
 		cv::Mat outputImage;
 		cv::drawKeypoints(image, keypoints, outputImage, cv::Scalar(0, 255, 0));
-
 		// Mostrar la imagen con los puntos clave
 		cv::imshow("Keypoints", outputImage);
 		cv::waitKey(0);
-		}
+//		}
 	}
 	      
 

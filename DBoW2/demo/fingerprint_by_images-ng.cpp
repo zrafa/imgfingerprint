@@ -42,6 +42,227 @@ std::vector<BowVector> loadBowVectors(const std::string& filename);
 // ------------------------------------------------------------------------------------------------
 
 
+
+void encontrar_bordes(const cv::Mat& img, int *x1, int *x2)
+{
+
+        cv::Mat gray = img;
+    // Obtener el tamaño de la imagen
+    int rows = gray.rows;
+    int cols = gray.cols;
+
+    // Columna central
+    int centralCol = cols / 2;
+
+    // Calcular la media de grises de la columna central
+    double centralMean = 0.0;
+    for (int i = 0; i < rows; i++) {
+        centralMean += gray.at<uchar>(i, centralCol);
+    }
+    centralMean /= rows;
+
+    std::cout << "Media de la columna central: " << centralMean << std::endl;
+
+    // Función para calcular la media de grises de una columna
+    auto calcularMediaColumna = [&](int col) {
+        double mean = 0.0;
+        for (int i = 0; i < rows; i++) {
+            mean += gray.at<uchar>(i, col);
+        }
+        return mean / rows;
+    };
+
+    // Umbral de diferencia para considerar que los colores no coinciden
+    double umbral = 10.0;  // Ajustar este valor según la imagen
+
+    // Buscar los bordes hacia la izquierda y derecha
+    int bordeIzquierdo = -1;
+    int bordeDerecho = -1;
+
+    // Buscar hacia la izquierda
+    for (int col = centralCol - 1; col >= 0; col--) {
+        double mediaColumna = calcularMediaColumna(col);
+        double mediaColumnaSiguiente = calcularMediaColumna(col - 1);
+
+        if (std::abs(mediaColumna - centralMean) > umbral && std::abs(mediaColumnaSiguiente - centralMean) > umbral) {
+            bordeIzquierdo = col;
+            break;
+        }
+    }
+
+    // Buscar hacia la derecha
+    for (int col = centralCol + 1; col < cols; col++) {
+        double mediaColumna = calcularMediaColumna(col);
+        double mediaColumnaSiguiente = calcularMediaColumna(col + 1);
+
+        if (std::abs(mediaColumna - centralMean) > umbral && std::abs(mediaColumnaSiguiente - centralMean) > umbral) {
+            bordeDerecho = col;
+            break;
+        }
+    }
+
+    // Mostrar los resultados
+    if (bordeIzquierdo != -1 && bordeDerecho != -1) {
+        std::cout << "Borde izquierdo detectado en x: " << bordeIzquierdo << std::endl;
+        std::cout << "Borde derecho detectado en x: " << bordeDerecho << std::endl;
+
+	        // Dibujar las líneas de los bordes en la imagen
+        cv::Mat result;
+        cv::cvtColor(gray, result, cv::COLOR_GRAY2BGR);  // Convertir a BGR para dibujar en color
+        cv::line(result, cv::Point(bordeIzquierdo, 0), cv::Point(bordeIzquierdo, rows), cv::Scalar(0, 0, 255), 2);  // Línea roja para el borde izquierdo
+        cv::line(result, cv::Point(bordeDerecho, 0), cv::Point(bordeDerecho, rows), cv::Scalar(0, 255, 0), 2);  // Línea verde para el borde derecho
+
+        // Mostrar la imagen con los bordes detectados
+        cv::imshow("Bordes del tronco detectados", result);
+        cv::waitKey(0);
+
+	*x1 = bordeIzquierdo;
+	*x2 = bordeDerecho;
+    } else {
+        std::cout << "No se detectaron los bordes del tronco." << std::endl;
+    }
+
+}
+
+
+
+// Función para recortar la imagen alrededor del tronco
+bool recortar_tronco(const cv::Mat& img, cv::Mat& recortada)
+//std::optional<cv::Mat> recortar_tronco(cv::Mat& img)
+{
+	double centerX;
+
+	// Convertir a escala de grises
+	cv::Mat gray;
+	cv::Rect roi2(0, 0, img.cols, img.rows-50);
+	gray = img(roi2);
+	//gray = img;
+
+	// Aplicar un filtro Gaussiano para reducir el ruido
+	cv::Mat blurred;
+	GaussianBlur(gray, blurred, cv::Size(5, 5), 2);
+
+	// Detectar bordes usando Canny
+	cv::Mat edges;
+	Canny(blurred, edges, 20, 60);
+
+	// Aplicar la Transformada de Hough para detectar líneas
+	vector<cv::Vec4i> lines;
+	HoughLinesP(edges, lines, 1, CV_PI / 180, 50, 50, 5);
+
+	// Filtrar líneas verticales
+	vector<cv::Vec4i> verticalLines;
+	double dx;
+	double dy;
+	for (auto& l : lines) {
+		dx = abs(l[2] - l[0]);
+		dy = abs(l[3] - l[1]);
+		double angle = atan2(dy, dx) * 180 / CV_PI;
+		//if (angle > 75 && angle < 105 && dy > 50) {
+		if (angle > 65 && angle < 115 && dy > 50) {
+			verticalLines.push_back(l);
+		}
+	}
+
+
+	// Analizar continuidad de color en columnas
+	vector<int> lowVarianceColumns;
+	for (int x = 0; x < gray.cols; ++x) {
+		cv::Mat column = gray.col(x);
+		cv::Scalar mean, stddev;
+		meanStdDev(column, mean, stddev);
+
+		// Si la desviación estándar es baja, hay poca variación vertic
+		// RAFA if (stddev[0] < 20) {
+		// RAFA MUY BUENO if (stddev[0] < 10) {
+		if (stddev[0] < 15) {
+			lowVarianceColumns.push_back(x);
+		}
+	}
+
+	// Agrupar líneas en regiones densas
+	sort(lowVarianceColumns.begin(), lowVarianceColumns.end());
+
+	vector<pair<int, int>> regions;
+	if (lowVarianceColumns.empty()) {
+		cout << "No se encontró un tronco claro color" << endl;
+		return false; // Indicar error
+	};
+      // 	else {
+
+		int start = lowVarianceColumns[0];
+		int end = start;
+		for (size_t i = 1; i < lowVarianceColumns.size(); ++i) {
+			if (lowVarianceColumns[i] - end <= 5) {
+				end = lowVarianceColumns[i];
+			} else {
+				regions.push_back(make_pair(start, end));
+				start = lowVarianceColumns[i];
+				end = start;
+			}
+		}
+		regions.push_back(make_pair(start, end));
+
+		// Encontrar la región con mayor densidad de líneas
+		int maxDensity = 0;
+		int bestRegionStart = 0;
+		int bestRegionEnd = 0;
+		for (auto& region : regions) {
+			int density = region.second - region.first;
+			if (density > maxDensity) {
+				maxDensity = density;
+				bestRegionStart = region.first;
+				bestRegionEnd = region.second;
+			}
+		}
+
+		// Calcular el centro de la región más densa
+		centerX = (bestRegionStart + bestRegionEnd) / 2.0;
+		// RAFA para nuevas pruebas if (centerX == 0) {
+		if ((centerX == 0) || (centerX < 250) || (centerX > 614) ) {
+			cout << "No se encontró un tronco claro" << endl;
+			return false;
+		}
+		cout << " centerx " << centerX << flush ;
+		// centerXX = centerX;
+//	}
+
+	// Ajustar los límites de recorte para mantener
+	// el punto rojo en el centro
+	int xLeft = max(0, (int)(centerX - MARGEN));
+	int xRight = min(img.cols, (int)(centerX + MARGEN));
+
+	// Ajustar los límites si la región de recorte
+	// se sale del borde de la imagen
+	if (xLeft == 0) {
+		xRight = min(MARGEN*2, img.cols);
+	} else if (xRight == img.cols) {
+		xLeft = max(0, img.cols - MARGEN*2);
+	}
+
+	// Recortar la imagen
+	cv::Rect roi(xLeft, 0, xRight - xLeft, img.rows);
+	//recortada = img(roi);
+	cv::Mat img_tmp;
+	img_tmp = img(roi);
+	int x1, x2;
+	encontrar_bordes(img_tmp, &x1, &x2);
+
+
+		cout << " x1 " << x1 << " x2 " << x2 << endl << flush ;
+	cv::Rect roi3(x1, 0, x2-x1, img_tmp.rows);
+	if ((x1 != -1) && (x2 != -1) && (x1 < 864) && (x2 < 864) && (x1 < x2) )
+		recortada = img_tmp(roi3);
+
+	// Dibujar un círculo rojo en el centro del recorte (opcional)
+	// circle(recortada, cv::Point(100, recortada.rows / 2), 5, cv::Scalar(0, 0, 255), -1);
+	return true;
+}
+
+
+
+/*
+
 // Función para recortar la imagen alrededor del tronco
 bool recortar_tronco(const cv::Mat& img, cv::Mat& recortada) 
 //std::optional<cv::Mat> recortar_tronco(cv::Mat& img) 
@@ -142,44 +363,6 @@ bool recortar_tronco(const cv::Mat& img, cv::Mat& recortada)
 	    }
 	}
 
-    // **NUEVA PARTE**: Mejorar detección de yuyos con segmentación de color
-    /*
-    int yStart = img.rows * 0.8;  // Analizar el último 20% de la imagen
-    cv::Mat bottomRegion = img(cv::Range(yStart, img.rows), cv::Range(bestRegionStart, bestRegionEnd));
-
-	cout << " VA POR 14 "<< endl << flush ;
-    // Convertir a espacio de color HSV
-    cv::Mat hsv;
-    cvtColor(bottomRegion, hsv, cv::COLOR_BGR2HSV);
-
-    // Rango para color verde de los yuyos
-    cv::Scalar lowerGreen(35, 40, 40);  // Umbral inferior
-    cv::Scalar upperGreen(85, 255, 255);  // Umbral superior
-
-	cout << " VA POR 14 "<< endl << flush ;
-    cv::Mat mask;
-    inRange(hsv, lowerGreen, upperGreen, mask);
-
-	cout << " VA POR 14 "<< endl << flush ;
-    // Calcular la proporción de píxeles verdes
-    double greenRatio = (double)countNonZero(mask) / (mask.rows * mask.cols);
-
-    if (greenRatio > 0.2) {  // Ajustar umbral según resultados
-        cout << "Yuyos detectados debajo del tronco, posible falso positivo." << endl;
-        //return 0;
-        centerX = img.cols / 2;
-    }
-	cout << " VA POR 14 "<< endl << flush ;
-
-
-
-	*/
-
-
-
-
-
-
     // Ajustar los límites de recorte para mantener el punto rojo en el centro
     int xLeft = max(0, (int)(centerX - MARGEN));
     int xRight = min(img.cols, (int)(centerX + MARGEN));
@@ -194,7 +377,18 @@ bool recortar_tronco(const cv::Mat& img, cv::Mat& recortada)
     // Recortar la imagen
     cv::Rect roi(xLeft, 0, xRight - xLeft, img.rows);
     //cv::Mat croppedImg = img(roi);
-    recortada = img(roi);
+    	//recortada = img(roi);
+	
+	cv::Mat img_tmp;
+	img_tmp = img(roi);
+	int x1, x2;
+	encontrar_bordes(img_tmp, &x1, &x2);
+
+
+		cout << " x1 " << x1 << " x2 " << x2 << endl << flush ;
+	cv::Rect roi3(x1, 0, x2-x1, img_tmp.rows);
+	if ((x1 != -1) && (x2 != -1) && (x1 < 864) && (x2 < 864) && (x1 < x2) )
+		recortada = img_tmp(roi3);
 
     // Dibujar un círculo rojo en el centro del recorte (opcional)
     //circle(croppedImg, cv::Point(100, croppedImg.rows / 2), 5, cv::Scalar(0, 0, 255), -1);
@@ -203,6 +397,7 @@ bool recortar_tronco(const cv::Mat& img, cv::Mat& recortada)
     //return croppedImg;
     return true;
 }
+*/
 
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
