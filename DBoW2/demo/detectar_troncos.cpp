@@ -43,7 +43,129 @@ const int NIMAGES = 1262;
 #define MARGEN 200
 
 
+// ---------------------- PINTAR TRONCO 
 
+// Función para calcular la media de un parche central de 10x10 píxeles
+double calcularMediaParcheCentral(const cv::Mat& gray, int centroX, int patchSize) {
+    int rows = gray.rows;
+    int cols = gray.cols;
+
+    int centralRow = rows / 2;
+    // int centralCol = cols / 2;
+    int centralCol = centroX;
+
+    double sum = 0.0;
+    int count = 0;
+
+    for (int i = -patchSize/2; i < patchSize/2; i++) {
+        for (int j = -patchSize/2; j < patchSize/2; j++) {
+            sum += gray.at<uchar>(centralRow + i, centralCol + j);
+            count++;
+        }
+    }
+
+    return sum / count;
+}
+
+// Función para encontrar los límites izquierdo y derecho de una fila
+std::pair<int, int> encontrarLimitesFila(const cv::Mat& gray, int centroX, int row, double mediaCentral, double umbral) {
+    int cols = gray.cols;
+    // int centralCol = cols / 2;
+    int centralCol = centroX;
+
+    // Buscar borde izquierdo
+    int limiteIzq = -1;
+    for (int col = centralCol; col >= 0; col--) {
+        if (std::abs(gray.at<uchar>(row, col) - mediaCentral) > umbral) {
+            limiteIzq = col;
+            break;
+        }
+    }
+
+    // Buscar borde derecho
+    int limiteDer = -1;
+    for (int col = centralCol; col < cols; col++) {
+        if (std::abs(gray.at<uchar>(row, col) - mediaCentral) > umbral) {
+            limiteDer = col;
+            break;
+        }
+    }
+
+    return {limiteIzq, limiteDer};
+}
+
+// Función principal para pintar el tronco
+void pintarTronco(cv::Mat& img, int centroX, double umbral) {
+    // Convertir a escala de grises si no lo está
+    cv::Mat gray;
+    if (img.channels() == 3) {
+        cv::cvtColor(img, gray, cv::COLOR_BGR2GRAY);
+    } else {
+        gray = img.clone();
+    }
+
+    int rows = gray.rows;
+    int cols = gray.cols;
+    int centralRow = rows / 2;
+    //int centralRow = centroX;
+    int patchSize = 10;
+
+    // Calcular la media de un parche 10x10 en el centro
+    double mediaCentral = calcularMediaParcheCentral(gray, centroX, patchSize);
+
+    // Pintar fila por fila, desde la central hacia arriba y hacia abajo
+    for (int rowOffset = 0; rowOffset <= centralRow; rowOffset++) {
+        // Fila superior e inferior
+        int rowUp = centralRow - rowOffset;
+        int rowDown = centralRow + rowOffset;
+
+        // Encontrar límites de la fila superior
+        auto [limiteIzqUp, limiteDerUp] = encontrarLimitesFila(gray, centroX, rowUp, mediaCentral, umbral);
+        auto [limiteIzqDown, limiteDerDown] = encontrarLimitesFila(gray, centroX, rowDown, mediaCentral, umbral);
+
+        // Pintar filas superior e inferior (en verde)
+        if (limiteIzqUp != -1 && limiteDerUp != -1) {
+            cv::line(img, cv::Point(limiteIzqUp, rowUp), cv::Point(limiteDerUp, rowUp), cv::Scalar(0, 255, 0), 1);
+            img.at<cv::Vec3b>(rowUp, cols / 2) = cv::Vec3b(0, 0, 255);  // Punto central en rojo
+        }
+        if (limiteIzqDown != -1 && limiteDerDown != -1) {
+            cv::line(img, cv::Point(limiteIzqDown, rowDown), cv::Point(limiteDerDown, rowDown), cv::Scalar(0, 255, 0), 1);
+            img.at<cv::Vec3b>(rowDown, cols / 2) = cv::Vec3b(0, 0, 255);  // Punto central en rojo
+        }
+    }
+        cv::imshow("Bordes del tronco detectados", img);
+        cv::waitKey(0);
+}
+
+
+
+// ---------------------- ENCONTRAR TRONCO
+
+// Estructura para mientras se identifica un arbol con info util
+struct frutal {
+	int nro_arbol;
+	int distancia;
+	int diametro;
+	int x1; 	// lateral izquierdo del arbol en la foto
+	int x2; 	// lateral derecho del arbol en la foto
+	cv::Mat image;  // falta foto
+	// falta marca de tiempo
+} st_frutal;
+
+#define N_ULT_ARBOLES 5
+frutal ultimos_arboles[N_ULT_ARBOLES];
+
+void ult_arboles_init(void )
+{
+	int i;
+	for (i=0; i<N_ULT_ARBOLES; i++){
+		ultimos_arboles[i].nro_arbol = -1;
+		ultimos_arboles[i].distancia = -1;
+		ultimos_arboles[i].diametro = -1;
+		ultimos_arboles[i].x1 = -1;
+		ultimos_arboles[i].x2 = -1;
+	}
+}
 
 
 
@@ -51,7 +173,8 @@ const int NIMAGES = 1262;
 struct LidarData {
     int distancia;
     int tiempo_ms;
-    long long tiempo_us;
+    long long marca_ms;
+    long long marca_us;
 };
 
     // Leer los datos del archivo lidar.txt
@@ -64,30 +187,36 @@ std::vector<LidarData> leerDatosLidar(const std::string& nombreArchivo) {
     std::vector<LidarData> datos;
     std::ifstream archivo(nombreArchivo);
     std::string linea;
+    std::string campo1, campo2, campo3;
 
     while (std::getline(archivo, linea)) {
         std::stringstream ss(linea);
         std::string token;
         LidarData data;
 
-        // Ignorar el primer campo (000:distancia:tiempo)
-        std::getline(ss, token, ' ');
+        // Parsear la línea
+        ss >> campo1 >> data.marca_us >> data.marca_ms;
 
-        // Leer marca de tiempo en us
-        ss >> data.tiempo_us;
-        // Leer marca de tiempo en ms
-        ss >> data.tiempo_ms;
+        // Extraer la distancia y el tiempo desde el primer campo
+        std::stringstream ss_campo1(campo1);
+        std::string aux;
+        std::getline(ss_campo1, aux, ':');  // 000
+        std::getline(ss_campo1, aux, ':');  // 00102 (distancia)
+        data.distancia = std::stoi(aux);
+        std::getline(ss_campo1, aux, ':');  // 000002 (tiempo de demora)
+        data.tiempo_ms = std::stoi(aux);
 
-        // Separar el campo "distancia" del primero
-        std::string campo_distancia = linea.substr(4, linea.find(':', 4) - 4);
-        data.distancia = std::stoi(campo_distancia);
-
+            // Aplicar la condición de distancia y tiempo
+            if (data.distancia < 200 && data.tiempo_ms > 10) {
+                data.distancia = 400;
+	    }
         datos.push_back(data);
     }
     return datos;
 }
 
 
+/*
 long long buscarDistanciaCercana(long long marcaTiempo_us) {
     std::ifstream archivo("lidar.txt");
     std::string linea;
@@ -134,38 +263,41 @@ long long buscarDistanciaCercana(long long marcaTiempo_us) {
     archivo.close();
     return distanciaMasCercana;
 }
+*/
 
 
-/*
 // Función para buscar la distancia más cercana dada una marca de tiempo
-int buscarDistanciaCercana(const std::vector<LidarData>& datos, long long tiempo_us) {
+//int buscarDistanciaCercana(const std::vector<LidarData>& datos, long long tiempo_us) {
+int buscarDistanciaCercana(long long tiempo_us) {
     int distanciaCercana = -1;
     long long menorDiferencia = std::numeric_limits<long long>::max();
 
-    for (const auto& dato : datos) {
-        long long diferencia = std::abs(dato.tiempo_us - tiempo_us);
+    for (const auto& dato : datosLidar) {
+        long long diferencia = std::abs(dato.marca_us - tiempo_us);
 
         if (diferencia < menorDiferencia) {
             menorDiferencia = diferencia;
             // Aplicar la regla de distancia
+	    /*
             if (dato.distancia < 200 && dato.tiempo_ms > 10) {
                 distanciaCercana = 400;  // Reemplazar por 400 cm
             } else {
                 distanciaCercana = dato.distancia;
             }
+	    */
+                distanciaCercana = dato.distancia;
         }
     }
 
     return distanciaCercana;
 }
-*/
 
 
 
 
 // ------------------------------------------------------------------------------------------------
 
-void encontrar_bordes(const cv::Mat& img, long long marca_tiempo) 
+void encontrar_bordes(const cv::Mat& img, long long marca_tiempo, int *x1, int *x2) 
 {
 
         cv::Mat gray = img;
@@ -268,6 +400,8 @@ void encontrar_bordes(const cv::Mat& img, long long marca_tiempo)
         std::cout << "Borde izquierdo detectado en x: " << bordeIzquierdo << std::endl;
         std::cout << "Borde derecho detectado en x: " << bordeDerecho << std::endl;
         std::cout << "Distancia:  " << distancia << std::endl;
+	*x1 = bordeIzquierdo;
+	*x2 = bordeDerecho;
 
 	        // Dibujar las líneas de los bordes en la imagen
         cv::Mat result;
@@ -275,96 +409,13 @@ void encontrar_bordes(const cv::Mat& img, long long marca_tiempo)
         cv::line(result, cv::Point(bordeIzquierdo, 0), cv::Point(bordeIzquierdo, rows), cv::Scalar(0, 0, 255), 2);  // Línea roja para el borde izquierdo
         cv::line(result, cv::Point(bordeDerecho, 0), cv::Point(bordeDerecho, rows), cv::Scalar(0, 255, 0), 2);  // Línea verde para el borde derecho
 
+	//pintarTronco(result, (bordeDerecho-bordeIzquierdo)/2+bordeIzquierdo, 15);
         // Mostrar la imagen con los bordes detectados
         cv::imshow("Bordes del tronco detectados", result);
         cv::waitKey(0);
     } else {
         std::cout << "No se detectaron los bordes del tronco." << std::endl;
     }
-
-
-
-
-
-
-
-
-
-
-    /*
-
-    // Obtener el tamaño de la imagen
-    int rows = gray.rows;
-    int cols = gray.cols;
-
-    // Columna central
-    int centralCol = cols / 2;
-
-    // Calcular la media de grises de la columna central
-    double centralMean = 0.0;
-    for (int i = 0; i < rows; i++) {
-        centralMean += gray.at<uchar>(i, centralCol);
-    }
-    centralMean /= rows;
-
-    std::cout << "Media de la columna central: " << centralMean << std::endl;
-
-    // Función para calcular la media de grises de una columna
-    auto calcularMediaColumna = [&](int col) {
-        double mean = 0.0;
-        for (int i = 0; i < rows; i++) {
-            mean += gray.at<uchar>(i, col);
-        }
-        return mean / rows;
-    };
-
-    // Umbral de diferencia para considerar que los colores no coinciden
-    double umbral = 10.0;  // Ajustar este valor según la imagen
-
-    // Buscar los bordes hacia la izquierda y derecha
-    int bordeIzquierdo = -1;
-    int bordeDerecho = -1;
-
-    // Buscar hacia la izquierda
-    for (int col = centralCol - 1; col >= 0; col--) {
-        double mediaColumna = calcularMediaColumna(col);
-        double mediaColumnaSiguiente = calcularMediaColumna(col - 1);
-
-        if (std::abs(mediaColumna - centralMean) > umbral && std::abs(mediaColumnaSiguiente - centralMean) > umbral) {
-            bordeIzquierdo = col;
-            break;
-        }
-    }
-
-    // Buscar hacia la derecha
-    for (int col = centralCol + 1; col < cols; col++) {
-        double mediaColumna = calcularMediaColumna(col);
-        double mediaColumnaSiguiente = calcularMediaColumna(col + 1);
-
-        if (std::abs(mediaColumna - centralMean) > umbral && std::abs(mediaColumnaSiguiente - centralMean) > umbral) {
-            bordeDerecho = col;
-            break;
-        }
-    }
-
-    // Mostrar los resultados
-    if (bordeIzquierdo != -1 && bordeDerecho != -1) {
-        std::cout << "Borde izquierdo detectado en x: " << bordeIzquierdo << std::endl;
-        std::cout << "Borde derecho detectado en x: " << bordeDerecho << std::endl;
-
-	        // Dibujar las líneas de los bordes en la imagen
-        cv::Mat result;
-        cv::cvtColor(gray, result, cv::COLOR_GRAY2BGR);  // Convertir a BGR para dibujar en color
-        cv::line(result, cv::Point(bordeIzquierdo, 0), cv::Point(bordeIzquierdo, rows), cv::Scalar(0, 0, 255), 2);  // Línea roja para el borde izquierdo
-        cv::line(result, cv::Point(bordeDerecho, 0), cv::Point(bordeDerecho, rows), cv::Scalar(0, 255, 0), 2);  // Línea verde para el borde derecho
-
-        // Mostrar la imagen con los bordes detectados
-        cv::imshow("Bordes del tronco detectados", result);
-        cv::waitKey(0);
-    } else {
-        std::cout << "No se detectaron los bordes del tronco." << std::endl;
-    }
-    */
 
 }
 
@@ -420,7 +471,7 @@ bool recortar_tronco(const cv::Mat& img, cv::Mat& recortada)
 
 		// Si la desviación estándar es baja, hay poca variación vertic
 		// RAFA if (stddev[0] < 20) {
-		// RAFA MUY BUENO if (stddev[0] < 10) {
+		// RAFA MUY BUENO if (stddev[0] < 15) {
 		if (stddev[0] < 15) {
 			lowVarianceColumns.push_back(x);
 		}
@@ -512,6 +563,36 @@ datosLidar = leerDatosLidar("lidar.txt");
   return 0;
 }
 
+// IDEAS:
+//   tener un arreglo de 4 arboles con los datos:
+//      - nro de arbol en la hilera
+//      - distancia
+//      - diametro
+//      - tal vez orb descriptors
+//
+//   Entonces, si se detectó un tronco al menos 3 veces con distancia acorde, entonces
+//   registrar los 4 siguientes arboles (siempre que cumplan la condiciones:
+//   - hay tronco en la foto
+//   - la distancia es acorde
+//   - tambien registrar el diametro en el arreglo.
+//
+//   Si los diametros coinciden y son "mas o menos interesantes (no muy delgados)", registrar
+//   en la BD:
+//        NRO de arbol en la hilera
+//        diametro
+//        los 4 fingerprints para el mismo arbol
+//
+//   Cuando se busque un arbol en la BD, solo existiran datos (en la BD) de algunos arboles de la hilera. 
+//   Arboles interesantes (los delgados o con diametros que fluctuaron no estarán en la BD)
+//
+//   Entonces el algoritmo de posicionamiento será así:
+//       - por un lado, cuando se detecte un arbol en la foto 3 veces, con distancia acorde,
+//         se contará + 1 (luego tiene que venir un periodo de "no distancia", para volver a contar un arbol
+//         Lo anterior intentará posicionarse "contando" los arboles en la hilera.
+//       - en paralelo, cuando el arbol parezca interesante (diametro parejo, distancia acorde, etc).
+//         se intentará buscar ese arbol en la BD (por diametro, orb descriptors).
+//
+//       
 // ----------------------------------------------------------------------------
 
 void buscar_troncos()
@@ -530,7 +611,8 @@ void buscar_troncos()
 	archivo.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
 
 	// vemos si podemos encontrar el arbol
-
+	int x1, x2;  // posible borde de un arbol
+	int arbol = 0;  // nro de arbol en la hilera
 	int total = 0;
   	int i;
 	std::chrono::time_point<std::chrono::high_resolution_clock> start;
@@ -568,15 +650,30 @@ void buscar_troncos()
     long long marcaTiempo = std::stoll(marcaTiempoStr);
 
     
-		if (!recortar_tronco(image, image)) {
+		if ((!recortar_tronco(image, image)) || (buscarDistanciaCercana(marcaTiempo) > 200)) {
 			total = 0;
 			continue;
 		}
-		total++;
-		if (total >= 3) {
-                	std::cout << " :tronco detectado. " << total << " " << ss.str(); 
-			encontrar_bordes(image, marcaTiempo);
+		if (total == N_ULT_ARBOLES)
+			continue;
+
+		ultimos_arboles[total].nro_arbol = arbol;
+		ultimos_arboles[total].distancia = buscarDistanciaCercana(marcaTiempo);
+		// ultimos_arboles[total].image = image;
+		encontrar_bordes(image, marcaTiempo, &x1, &x2);
+		ultimos_arboles[total].x1 = x1;
+		ultimos_arboles[total].x2 = x2;
+		ultimos_arboles[total].diametro = x2-x1;
+		//if (total >= 3) {
+		if (total == (N_ULT_ARBOLES-1)) {
+			arbol++;
+			for (i=0; i<N_ULT_ARBOLES; i++) {
+                		std::cout << " diametro: " << ultimos_arboles[i].diametro << "  distancia: " << ultimos_arboles[i].distancia << " relacion: " << ((double)ultimos_arboles[i].diametro / (double)ultimos_arboles[i].distancia) << std::endl;
+			}
+                	std::cout << " :tronco detectado. " << arbol << " " << total << " " << ss.str(); 
+			encontrar_bordes(image, marcaTiempo, &x1, &x2);
 		}
+		total++;
 		// cv::imshow("ORB Keypoints", image);
 		// cv::waitKey(0);
 
