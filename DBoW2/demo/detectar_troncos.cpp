@@ -14,7 +14,9 @@
 #include <sstream>
 #include <cmath>
 #include <limits>
+#include <algorithm>
 
+#include <vars.h>
 
 // DBoW2
 #include "DBoW2.h" // defines OrbVocabulary and OrbDatabase
@@ -40,7 +42,54 @@ using namespace std;
 
 // number of training images
 const int NIMAGES = 1262;
-#define MARGEN 200
+
+
+
+//  ---------------- DIAMETRO
+//
+// Calcular el diametro a partir de las muestras que quedan dentro del desvío
+// estándar
+double diametro_medio(const vector<double>& datos) {
+    // Calcular la media aritmética
+    double suma = 0;
+    for (double valor : datos) {
+        suma += valor;
+    }
+    double media = suma / datos.size();
+
+    // Calcular la varianza
+    double sumaVarianza = 0;
+    for (double valor : datos) {
+        sumaVarianza += pow(valor - media, 2);
+    }
+    double varianza = sumaVarianza / datos.size();
+
+    // Calcular el desvío estándar
+    double desvioEstandar = sqrt(varianza);
+
+    // Filtrar muestras dentro del desvío estándar
+    vector<double> dentroDelDesvio;
+    for (double valor : datos) {
+        if (valor >= media - desvioEstandar && valor <= media + desvioEstandar) {
+            dentroDelDesvio.push_back(valor);
+        }
+    }
+
+    // Calcular la mediana de las muestras dentro del desvío estándar
+    sort(dentroDelDesvio.begin(), dentroDelDesvio.end());
+    double mediana;
+    size_t n = dentroDelDesvio.size();
+    if (n % 2 == 0) {
+        mediana = (dentroDelDesvio[n / 2 - 1] + dentroDelDesvio[n / 2]) / 2;
+    } else {
+        mediana = dentroDelDesvio[n / 2];
+    }
+
+    return mediana;
+}
+
+
+
 
 
 // ---------------------- PINTAR TRONCO 
@@ -152,7 +201,6 @@ struct frutal {
 	// falta marca de tiempo
 } st_frutal;
 
-#define N_ULT_ARBOLES 5
 frutal ultimos_arboles[N_ULT_ARBOLES];
 
 void ult_arboles_init(void )
@@ -313,7 +361,7 @@ void encontrar_bordes(const cv::Mat& img, long long marca_tiempo, int *x1, int *
 
 
     // Umbral de diferencia para la homogeneidad de los píxeles
-    double umbralHomogeneidad = 15.0; // Ajustar este valor según la imagen
+//    double umbralHomogeneidad = 15.0; // Ajustar este valor según la imagen
 
     // Función para calcular la media de gris de una columna
     auto calcularMediaColumna = [&](int col) {
@@ -327,6 +375,7 @@ void encontrar_bordes(const cv::Mat& img, long long marca_tiempo, int *x1, int *
     // Media de la columna central
     double mediaCentral = calcularMediaColumna(centralCol);
 
+    /*
     // Función para verificar si una columna es homogénea comparando con su media
     auto esColumnaHomogenea = [&](int col, double mediaColumna, double umbral) {
         int countSimilar = 0;
@@ -339,6 +388,7 @@ void encontrar_bordes(const cv::Mat& img, long long marca_tiempo, int *x1, int *
         // Verificar si al menos el 70% de los píxeles son similares a la media
         return (countSimilar > 0.8 * rows);
     };
+    */
 
     // Verificar si la columna central es homogénea
  //   if (!esColumnaHomogenea(centralCol, mediaCentral, umbralHomogeneidad)) {
@@ -349,13 +399,13 @@ void encontrar_bordes(const cv::Mat& img, long long marca_tiempo, int *x1, int *
     // int distancia = buscarDistanciaCercana(datosLidar, marca_tiempo);
     int distancia = buscarDistanciaCercana(marca_tiempo);
 
-    if (distancia > 200) {
+    if (distancia > DISTANCIA_ARBOL) {
         std::cout << "Distancia lejana: ." << distancia << " MARCA TIEMPO: " << marca_tiempo << std::endl;
 	return;
     }
 
     // Umbral para la diferencia de nivel de gris entre píxeles
-    double umbral = 15.0; // Ajustar según el contraste de la imagen
+//    double umbral = 15.0; // Ajustar según el contraste de la imagen
 
     // Función para calcular la media de gris entre dos píxeles
     auto diferenciaPixel = [&](int fila, int col1, int col2) {
@@ -366,7 +416,7 @@ void encontrar_bordes(const cv::Mat& img, long long marca_tiempo, int *x1, int *
     auto columnaEsBorde = [&](int col1, int col2) {
         int countDiff = 0;
         for (int i = 0; i < rows; i++) {
-            if (diferenciaPixel(i, col1, col2) > umbral) {
+            if (diferenciaPixel(i, col1, col2) > umbral_gris) {
                 countDiff++;
             }
         }
@@ -595,6 +645,47 @@ datosLidar = leerDatosLidar("lidar.txt");
 //       
 // ----------------------------------------------------------------------------
 
+int diametros_dispares(const vector<double>& datos) 
+{
+	int media = 0;
+	int i;
+	for (i=0; i<N_ULT_ARBOLES; i++) {
+		media += datos[i];
+		cout << datos[i] << " a " << endl;
+	}
+	media = media / N_ULT_ARBOLES;
+		cout << media << " media diam a " << endl;
+	for (i=0; i<N_ULT_ARBOLES; i++) {
+		if ((datos[i] < (media-10)) || 
+		    (datos[i] > (media+10))) {
+				cout << datos[i] << "   a " << (media-10) << " " << (media+10) << endl;
+
+			return 1;
+		}
+	}
+	return 0;
+}
+
+int distancias_dispares(const vector<double>& datos) 
+{
+	int media = 0;
+	int i;
+	for (i=0; i<N_ULT_ARBOLES; i++) {
+		media += datos[i];
+		cout << datos[i] << " a " << endl;
+	}
+	media = media / N_ULT_ARBOLES;
+		cout << media << " media a " << endl;
+	for (i=0; i<N_ULT_ARBOLES; i++) {
+		if ((datos[i] < (media-2)) || 
+		    (datos[i] > (media+2))) {
+				cout << datos[i] << "   a " << (media-2) << " " << (media+2) << endl;
+			return 1;
+		}
+	}
+	return 0;
+}
+
 void buscar_troncos()
 {
 	std::ifstream archivo("listado.txt");
@@ -650,8 +741,12 @@ void buscar_troncos()
     long long marcaTiempo = std::stoll(marcaTiempoStr);
 
     
-		if ((!recortar_tronco(image, image)) || (buscarDistanciaCercana(marcaTiempo) > 200)) {
+		//if ((!recortar_tronco(image, image)) || (buscarDistanciaCercana(marcaTiempo) > 200)) {
+		if (buscarDistanciaCercana(marcaTiempo) > DISTANCIA_ARBOL) {
 			total = 0;
+			continue;
+		}
+		if (!recortar_tronco(image, image)) {
 			continue;
 		}
 		if (total == N_ULT_ARBOLES)
@@ -664,14 +759,28 @@ void buscar_troncos()
 		ultimos_arboles[total].x1 = x1;
 		ultimos_arboles[total].x2 = x2;
 		ultimos_arboles[total].diametro = x2-x1;
-		//if (total >= 3) {
-		if (total == (N_ULT_ARBOLES-1)) {
+		if (total == (CONSECUTIVOS-1)) {
 			arbol++;
-			for (i=0; i<N_ULT_ARBOLES; i++) {
-                		std::cout << " diametro: " << ultimos_arboles[i].diametro << "  distancia: " << ultimos_arboles[i].distancia << " relacion: " << ((double)ultimos_arboles[i].diametro / (double)ultimos_arboles[i].distancia) << std::endl;
-			}
                 	std::cout << " :tronco detectado. " << arbol << " " << total << " " << ss.str(); 
 			encontrar_bordes(image, marcaTiempo, &x1, &x2);
+		}
+		if (total == (N_ULT_ARBOLES-1)) {
+			vector<double> diametros;
+			vector<double> distancias;
+			double tmp = 0.0;
+			//arbol++;
+			for (i=0; i<N_ULT_ARBOLES; i++) {
+                		std::cout << " diametro: " << ultimos_arboles[i].diametro << "  distancia: " << ultimos_arboles[i].distancia << " relacion: " << ((double)ultimos_arboles[i].diametro / (double)ultimos_arboles[i].distancia) << std::endl;
+                		tmp = (((double)ultimos_arboles[i].diametro / (double)ultimos_arboles[i].distancia) * 100.0) / PIXELES_X_CM;
+				diametros.push_back(tmp);
+				distancias.push_back(ultimos_arboles[i].distancia);
+			}
+			if (distancias_dispares(distancias) || (diametros_dispares(diametros))) {
+                		cout << arbol << " :distancias dispares " << endl;
+			} else {
+    				double puntoCentral = diametro_medio(diametros);
+                		cout << arbol << " :diametro medio en cm (sin distancia): . " << puntoCentral << endl;
+			}
 		}
 		total++;
 		// cv::imshow("ORB Keypoints", image);
