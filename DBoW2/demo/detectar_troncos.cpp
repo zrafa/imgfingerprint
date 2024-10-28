@@ -43,6 +43,7 @@ using namespace std;
 // number of training images
 const int NIMAGES = 1262;
 
+int BD = 0;		// ejecutar en modo busqueda
 
 
 //  ---------------- DIAMETRO
@@ -190,6 +191,16 @@ void pintarTronco(cv::Mat& img, int centroX, double umbral) {
 
 // ---------------------- ENCONTRAR TRONCO
 
+// ------------------------------ BD
+struct arbol_db {
+    int id;
+    int diametro_en_px;
+    double diametro_en_cm;
+    vector<cv::Mat> descriptores;
+};
+
+vector<arbol_db> db;
+
 // Estructura para mientras se identifica un arbol con info util
 struct frutal {
 	int nro_arbol;
@@ -202,6 +213,80 @@ struct frutal {
 } st_frutal;
 
 frutal ultimos_arboles[N_ULT_ARBOLES];
+
+cv::Ptr<cv::ORB> orb;
+
+
+
+
+// Función para agregar descriptores ORB de un árbol a la base de datos
+void db_add(int id, int diametro_en_px, double diametro_en_cm) {
+	int i;
+    arbol_db arbol;
+    arbol.id = id;
+    arbol.diametro_en_px = diametro_en_px;
+    arbol.diametro_en_cm = diametro_en_cm;
+
+	for (i=0; i<N_ULT_ARBOLES; i++) {
+		cv::Mat desc;
+		vector<cv::KeyPoint> keypoints;
+		orb->detectAndCompute(ultimos_arboles[i].image, cv::noArray(), keypoints, desc);
+		arbol.descriptores.push_back(desc);
+    }
+
+    db.push_back(arbol);
+}
+
+void db_save(const string& archivo) {
+	cv::FileStorage fs(archivo, cv::FileStorage::WRITE);
+
+    fs << "arboles" << "[";
+    for (const auto& arbol : db) {
+        fs << "{";
+        fs << "id" << arbol.id;
+        fs << "diametro_en_px" << arbol.diametro_en_px;
+        fs << "diametro_en_cm" << arbol.diametro_en_cm;
+
+        fs << "descriptores" << "[";
+        for (const auto& desc : arbol.descriptores) {
+            fs << desc;
+        }
+        fs << "]";
+        fs << "}";
+    }
+    fs << "]";
+    fs.release();
+}
+
+void db_load(const string& archivo) {
+	cv::FileStorage fs(archivo, cv::FileStorage::READ);
+
+	cv::FileNode arboles = fs["arboles"];
+    for (const auto& node : arboles) {
+        arbol_db arbol;
+        node["id"] >> arbol.id;
+        node["diametro_en_px"] >> arbol.diametro_en_px;
+        node["diametro_en_cm"] >> arbol.diametro_en_cm;
+
+	cv::FileNode descs = node["descriptores"];
+        for (const auto& descNode : descs) {
+		cv::Mat descriptor;
+            descNode >> descriptor;
+            arbol.descriptores.push_back(descriptor);
+        }
+
+        db.push_back(arbol);
+    }
+    fs.release();
+    // return baseDatos;
+}
+
+
+
+
+// ---------------------------- fin de BD
+
+
 
 void ult_arboles_init(void )
 {
@@ -605,10 +690,35 @@ void buscar_troncos();
 
 
 
-int main()
+int main(int argc, char* argv[]) 
 {
-datosLidar = leerDatosLidar("lidar.txt");
-  buscar_troncos();
+    // Verifica si el número de argumentos es mayor que 1
+    if (argc > 1) {
+        // Compara el primer argumento con "bd"
+        if (strcmp(argv[1], "bd") == 0) {
+            BD = 1;  // ejecutar en modo BD
+		    cout << " en modo BD " << endl;
+        }
+    }
+
+    orb = cv::ORB::create(200, 1.01, 3, 65, 2, 4, cv::ORB::HARRIS_SCORE, 45);
+
+    if (!BD) {
+	    db_load("hilera.db");
+	    int i;
+	    for (i=0; i<30; i++) {
+		    cout << db[i].id << " " << db[i].diametro_en_px << " " << db[i].diametro_en_cm << endl;
+	    }
+
+    }
+
+
+
+	datosLidar = leerDatosLidar("lidar.txt");
+  	buscar_troncos();
+
+    if (BD)
+	db_save("hilera.db");
 
   return 0;
 }
@@ -707,14 +817,15 @@ void buscar_troncos()
 	int total = 0;
   	int i;
 	std::chrono::time_point<std::chrono::high_resolution_clock> start;
-	for (i=0; i<numero; i++) {
+	int ii;
+	for (ii=0; ii<numero; ii++) {
 
                 // Captura el tiempo final
                 auto end = std::chrono::high_resolution_clock::now();
                 // Calcula la duración
                 std::chrono::duration<double> duration = end - start;
                 // Imprime la duración en segundos
-                std::cout << " Tiempo transcurrido foto : " << i-1 << "  " << duration.count() << " segundos" << std::endl;
+                std::cout << " Tiempo transcurrido foto : " << numero << " " << ii-1 << "  " << duration.count() << " segundos" << std::endl;
                 // Inicia un nuevo cronometro
                 start = std::chrono::high_resolution_clock::now();
 
@@ -759,6 +870,10 @@ void buscar_troncos()
 		ultimos_arboles[total].x1 = x1;
 		ultimos_arboles[total].x2 = x2;
 		ultimos_arboles[total].diametro = x2-x1;
+		cv::Rect roi(x1, 0, x2-x1, image.rows);
+		ultimos_arboles[total].image = image(roi).clone();
+		cv::imshow("ORB Keypoints", ultimos_arboles[total].image);
+		cv::waitKey(0);
 		if (total == (CONSECUTIVOS-1)) {
 			arbol++;
                 	std::cout << " :tronco detectado. " << arbol << " " << total << " " << ss.str(); 
@@ -777,9 +892,17 @@ void buscar_troncos()
 			}
 			if (distancias_dispares(distancias) || (diametros_dispares(diametros))) {
                 		cout << arbol << " :distancias dispares " << endl;
+				if (BD) {
+					db_add(arbol, -1, -1.0);
+				} else {
+				}
 			} else {
-    				double puntoCentral = diametro_medio(diametros);
-                		cout << arbol << " :diametro medio en cm (sin distancia): . " << puntoCentral << endl;
+    				double diametro = diametro_medio(diametros);
+                		cout << arbol << " :diametro medio en cm (sin distancia): . " << diametro << endl;
+				if (BD) {
+					db_add(arbol, (int)diametro * (int)PIXELES_X_CM, diametro);
+				} else {
+				}
 			}
 		}
 		total++;
