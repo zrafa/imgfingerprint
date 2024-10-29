@@ -25,14 +25,9 @@
 #include <opencv2/core.hpp>
 #include <opencv2/highgui.hpp>
 #include <opencv2/features2d.hpp>
-
 #include <opencv2/ximgproc.hpp>
-
-
-
 #include <opencv2/imgcodecs.hpp>
 #include <opencv2/imgproc.hpp>
-#include <opencv2/highgui.hpp>
 
 
 using namespace DBoW2;
@@ -346,125 +341,6 @@ int db_buscar(const cv::Mat& fotoNueva) {
 
 
 
-/*
-
-int db_buscar(const cv::Mat& fotoNueva) {
-	cv::Mat descNueva;
-    vector<cv::KeyPoint> keypoints;
-    orb->detectAndCompute(fotoNueva, cv::noArray(), keypoints, descNueva);
-
-    cv::BFMatcher matcher(cv::NORM_HAMMING);
-    int mejorId = -1;
-    int maxCoincidencias = 0;
-
-    for (const auto& arbol : db) {
-	    /*
-	        if (arbol.descriptores.empty()) {
-    		    // Si el árbol no tiene descriptores, pasar al siguiente
-        		continue;
-    		}
-
-	    cout << "orb es va por : " << arbol.id << endl;
-        // Calcular el descriptor promedio
-	    cv::Mat promedioDescriptor = cv::Mat::zeros(arbol.descriptores[0].size(), CV_8UC1);
-        for (const auto& desc : arbol.descriptores) {
-		 if (desc.rows == 0 || desc.cols == 0) {
-        		    continue; // Saltar descriptores vacíos
-        		}
-            promedioDescriptor += desc;
-        }
-        promedioDescriptor /= arbol.descriptores.size();
-
-
-
-	*/
-
-/*
-        if (arbol.diametro_en_px == -1) {
-		continue;
-	}
-        if (arbol.descriptores.empty()) {
-        continue; // Pasar al siguiente árbol si no hay descriptores en absoluto
-    }
-
-    // Encontrar el tamaño máximo entre los descriptores válidos
-	cv::Size maxSize;
-    bool hasValidDescriptor = false;
-    for (const auto& desc : arbol.descriptores) {
-        if (desc.rows > 0 && desc.cols > 0) {
-            maxSize = (desc.rows * desc.cols > maxSize.area()) ? desc.size() : maxSize;
-            hasValidDescriptor = true;
-        }
-    }
-
-    // Si no hay descriptores válidos, saltar este árbol
-    if (!hasValidDescriptor) {
-        continue;
-    }
-
-    // Inicializar el descriptor promedio con el tamaño máximo encontrado
-    cv::Mat promedioDescriptor = cv::Mat::zeros(maxSize, CV_32F);
-    int contadorValidos = 0;
-
-    for (const auto& desc : arbol.descriptores) {
-        if (desc.rows == 0 || desc.cols == 0) {
-            continue; // Saltar descriptores vacíos
-        }
-
-        // Redimensionar el descriptor al tamaño máximo antes de sumarlo
-	cv::Mat resizedDesc;
-        if (desc.size() != maxSize) {
-            resize(desc, resizedDesc, maxSize, 0, 0, cv::INTER_NEAREST);
-        } else {
-            resizedDesc = desc;
-        }
-
-        // Convertir a tipo flotante para realizar la suma acumulada
-	cv::Mat descFloat;
-        resizedDesc.convertTo(descFloat, CV_32F);
-
-        promedioDescriptor += descFloat;
-        contadorValidos++;
-    }
-
-    if (contadorValidos > 0) {
-        promedioDescriptor /= contadorValidos; // Dividir para obtener el promedio
-    }
-
-    // Convertir el promedio final a CV_8U si es necesario
-    promedioDescriptor.convertTo(promedioDescriptor, CV_8U);
-
-
-
-
-
-
-
-
-
-        // Comparar con la nueva foto
-        vector<cv::DMatch> matches;
-        matcher.match(descNueva, promedioDescriptor, matches);
-
-	int threshold = 50;
-        // Aplicar el ratio test
-        vector<cv::DMatch> good_matches;
-        for (size_t i = 0; i < matches.size(); i++) {
-            if (matches[i].distance < threshold) { // threshold ajustable
-                good_matches.push_back(matches[i]);
-            }
-        }
-
-        // Contar coincidencias
-        if (good_matches.size() > maxCoincidencias) {
-            maxCoincidencias = good_matches.size();
-            mejorId = arbol.id;
-        }
-    }
-
-    return mejorId;
-}
-*/
 
 
 
@@ -617,54 +493,6 @@ std::vector<LidarData> leerDatosLidar(const std::string& nombreArchivo) {
 }
 
 
-/*
-long long buscarDistanciaCercana(long long marcaTiempo_us) {
-    std::ifstream archivo("lidar.txt");
-    std::string linea;
-    long long marcaTiempoMasCercana = 0;
-    int distanciaMasCercana = 400;  // Valor por defecto si no se encuentra una distancia válida
-    long long diferenciaMinima = LLONG_MAX;
-
-    while (std::getline(archivo, linea)) {
-        std::stringstream ss(linea);
-        std::string campo1, campo2, campo3;
-        long long marcaTiempoLidar_us;
-        int distancia;
-        int tiempoMs;
-
-        // Parsear la línea
-        ss >> campo1 >> marcaTiempoLidar_us >> campo3;
-
-        // Extraer la distancia y el tiempo desde el primer campo
-        std::stringstream ss_campo1(campo1);
-        std::string aux;
-        std::getline(ss_campo1, aux, ':');  // 000
-        std::getline(ss_campo1, aux, ':');  // 00102 (distancia)
-        distancia = std::stoi(aux);
-        std::getline(ss_campo1, aux, ':');  // 000002 (tiempo de demora)
-        tiempoMs = std::stoi(aux);
-
-        // Calcular la diferencia de tiempo entre la marca de tiempo buscada y la del archivo
-        long long diferencia = std::abs(marcaTiempo_us - marcaTiempoLidar_us);
-
-        // Si es la marca de tiempo más cercana hasta ahora
-        if (diferencia < diferenciaMinima) {
-            diferenciaMinima = diferencia;
-            marcaTiempoMasCercana = marcaTiempoLidar_us;
-
-            // Aplicar la condición de distancia y tiempo
-            if (distancia < 200 && tiempoMs > 10) {
-                distanciaMasCercana = 400;
-            } else {
-                distanciaMasCercana = distancia;
-            }
-        }
-    }
-
-    archivo.close();
-    return distanciaMasCercana;
-}
-*/
 
 
 // Función para buscar la distancia más cercana dada una marca de tiempo
@@ -728,26 +556,6 @@ void encontrar_bordes(const cv::Mat& img, long long marca_tiempo, int *x1, int *
     // Media de la columna central
     double mediaCentral = calcularMediaColumna(centralCol);
 
-    /*
-    // Función para verificar si una columna es homogénea comparando con su media
-    auto esColumnaHomogenea = [&](int col, double mediaColumna, double umbral) {
-        int countSimilar = 0;
-        for (int i = 0; i < rows; i++) {
-            if (std::abs(gray.at<uchar>(i, col) - mediaColumna) < umbral) {
-                countSimilar++;
-            }
-        }
-        std::cout << "columna central :" << countSimilar*100/rows << std::endl;
-        // Verificar si al menos el 70% de los píxeles son similares a la media
-        return (countSimilar > 0.8 * rows);
-    };
-    */
-
-    // Verificar si la columna central es homogénea
- //   if (!esColumnaHomogenea(centralCol, mediaCentral, umbralHomogeneidad)) {
-  //      std::cout << "La columna central no es homogénea, por lo tanto, no parece ser un tronco." << std::endl;
-//	return;
- //   }
 
     // int distancia = buscarDistanciaCercana(datosLidar, marca_tiempo);
     int distancia = buscarDistanciaCercana(marca_tiempo);
@@ -839,30 +647,6 @@ bool recortar_tronco(const cv::Mat& img, cv::Mat& recortada)
 	// Aplicar un filtro Gaussiano para reducir el ruido
 	cv::Mat blurred;
 	GaussianBlur(gray, blurred, cv::Size(5, 5), 2);
-
-	/*
-	// Detectar bordes usando Canny
-	cv::Mat edges;
-	Canny(blurred, edges, 20, 60);
-
-	// Aplicar la Transformada de Hough para detectar líneas
-	vector<cv::Vec4i> lines;
-	HoughLinesP(edges, lines, 1, CV_PI / 180, 50, 50, 5);
-
-	// Filtrar líneas verticales
-	vector<cv::Vec4i> verticalLines;
-	double dx;
-	double dy;
-	for (auto& l : lines) {
-		dx = abs(l[2] - l[0]);
-		dy = abs(l[3] - l[1]);
-		double angle = atan2(dy, dx) * 180 / CV_PI;
-		//if (angle > 75 && angle < 105 && dy > 50) {
-		if (angle > 65 && angle < 115 && dy > 50) {
-			verticalLines.push_back(l);
-		}
-	}
-	*/
 
 
 	// Analizar continuidad de color en columnas
@@ -969,7 +753,7 @@ int main(int argc, char* argv[])
         }
     }
 
-    orb = cv::ORB::create(500, 1.01, 3, 65, 2, 4, cv::ORB::HARRIS_SCORE, 45);
+    orb = cv::ORB::create(200, 1.01, 3, 65, 2, 4, cv::ORB::HARRIS_SCORE, 45);
 
     if (!BD) {
 	    db_load("hilera.db");
