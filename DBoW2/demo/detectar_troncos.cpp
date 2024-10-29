@@ -219,6 +219,184 @@ cv::Ptr<cv::ORB> orb;
 
 
 
+int db_buscar(const cv::Mat& fotoNueva) {
+	cv::Mat descNueva;
+    vector<cv::KeyPoint> keypoints;
+    orb->detectAndCompute(fotoNueva, cv::noArray(), keypoints, descNueva);
+
+    cv::BFMatcher matcher(cv::NORM_HAMMING);
+    int mejorId = -1;
+    int maxCoincidencias = 0;
+    double mejorDistancia = DBL_MAX; // Inicializa a la distancia más alta posible
+
+    for (const auto& arbol : db) {
+        int coincidenciasActuales = 0;
+        double sumaDistancias = 0.0;
+
+        for (const auto& descBase : arbol.descriptores) {
+            if (descBase.rows == 0 || descBase.cols == 0) {
+                continue; // Saltar descriptores vacíos
+            }
+
+            // Comparar con cada descriptor de la foto nueva
+            vector<cv::DMatch> matches;
+            matcher.match(descNueva, descBase, matches);
+
+            // Ordenar los matches por distancia
+            sort(matches.begin(), matches.end(), [](const cv::DMatch& a, const cv::DMatch& b) {
+                return a.distance < b.distance;
+            });
+
+            // Filtrar coincidencias utilizando el umbral (threshold) adaptativo
+            vector<cv::DMatch> good_matches;
+            for (const auto& match : matches) {
+                if (match.distance < 60) { // Threshold de ejemplo, ajustar según resultados
+                    good_matches.push_back(match);
+                    sumaDistancias += match.distance;
+                }
+            }
+
+            coincidenciasActuales += good_matches.size();
+        }
+
+        // Decidir si este árbol es el mejor candidato
+        double distanciaMedia = coincidenciasActuales > 0 ? sumaDistancias / coincidenciasActuales : DBL_MAX;
+        if (coincidenciasActuales > maxCoincidencias ||
+            (coincidenciasActuales == maxCoincidencias && distanciaMedia < mejorDistancia)) {
+            maxCoincidencias = coincidenciasActuales;
+            mejorDistancia = distanciaMedia;
+            mejorId = arbol.id;
+        }
+    }
+
+    return mejorId;
+}
+
+
+
+
+/*
+
+int db_buscar(const cv::Mat& fotoNueva) {
+	cv::Mat descNueva;
+    vector<cv::KeyPoint> keypoints;
+    orb->detectAndCompute(fotoNueva, cv::noArray(), keypoints, descNueva);
+
+    cv::BFMatcher matcher(cv::NORM_HAMMING);
+    int mejorId = -1;
+    int maxCoincidencias = 0;
+
+    for (const auto& arbol : db) {
+	    /*
+	        if (arbol.descriptores.empty()) {
+    		    // Si el árbol no tiene descriptores, pasar al siguiente
+        		continue;
+    		}
+
+	    cout << "orb es va por : " << arbol.id << endl;
+        // Calcular el descriptor promedio
+	    cv::Mat promedioDescriptor = cv::Mat::zeros(arbol.descriptores[0].size(), CV_8UC1);
+        for (const auto& desc : arbol.descriptores) {
+		 if (desc.rows == 0 || desc.cols == 0) {
+        		    continue; // Saltar descriptores vacíos
+        		}
+            promedioDescriptor += desc;
+        }
+        promedioDescriptor /= arbol.descriptores.size();
+
+
+
+	*/
+
+/*
+        if (arbol.diametro_en_px == -1) {
+		continue;
+	}
+        if (arbol.descriptores.empty()) {
+        continue; // Pasar al siguiente árbol si no hay descriptores en absoluto
+    }
+
+    // Encontrar el tamaño máximo entre los descriptores válidos
+	cv::Size maxSize;
+    bool hasValidDescriptor = false;
+    for (const auto& desc : arbol.descriptores) {
+        if (desc.rows > 0 && desc.cols > 0) {
+            maxSize = (desc.rows * desc.cols > maxSize.area()) ? desc.size() : maxSize;
+            hasValidDescriptor = true;
+        }
+    }
+
+    // Si no hay descriptores válidos, saltar este árbol
+    if (!hasValidDescriptor) {
+        continue;
+    }
+
+    // Inicializar el descriptor promedio con el tamaño máximo encontrado
+    cv::Mat promedioDescriptor = cv::Mat::zeros(maxSize, CV_32F);
+    int contadorValidos = 0;
+
+    for (const auto& desc : arbol.descriptores) {
+        if (desc.rows == 0 || desc.cols == 0) {
+            continue; // Saltar descriptores vacíos
+        }
+
+        // Redimensionar el descriptor al tamaño máximo antes de sumarlo
+	cv::Mat resizedDesc;
+        if (desc.size() != maxSize) {
+            resize(desc, resizedDesc, maxSize, 0, 0, cv::INTER_NEAREST);
+        } else {
+            resizedDesc = desc;
+        }
+
+        // Convertir a tipo flotante para realizar la suma acumulada
+	cv::Mat descFloat;
+        resizedDesc.convertTo(descFloat, CV_32F);
+
+        promedioDescriptor += descFloat;
+        contadorValidos++;
+    }
+
+    if (contadorValidos > 0) {
+        promedioDescriptor /= contadorValidos; // Dividir para obtener el promedio
+    }
+
+    // Convertir el promedio final a CV_8U si es necesario
+    promedioDescriptor.convertTo(promedioDescriptor, CV_8U);
+
+
+
+
+
+
+
+
+
+        // Comparar con la nueva foto
+        vector<cv::DMatch> matches;
+        matcher.match(descNueva, promedioDescriptor, matches);
+
+	int threshold = 50;
+        // Aplicar el ratio test
+        vector<cv::DMatch> good_matches;
+        for (size_t i = 0; i < matches.size(); i++) {
+            if (matches[i].distance < threshold) { // threshold ajustable
+                good_matches.push_back(matches[i]);
+            }
+        }
+
+        // Contar coincidencias
+        if (good_matches.size() > maxCoincidencias) {
+            maxCoincidencias = good_matches.size();
+            mejorId = arbol.id;
+        }
+    }
+
+    return mejorId;
+}
+*/
+
+
+
 // Función para agregar descriptores ORB de un árbol a la base de datos
 void db_add(int id, int diametro_en_px, double diametro_en_cm) {
 	int i;
@@ -701,7 +879,7 @@ int main(int argc, char* argv[])
         }
     }
 
-    orb = cv::ORB::create(200, 1.01, 3, 65, 2, 4, cv::ORB::HARRIS_SCORE, 45);
+    orb = cv::ORB::create(500, 1.01, 3, 65, 2, 4, cv::ORB::HARRIS_SCORE, 45);
 
     if (!BD) {
 	    db_load("hilera.db");
@@ -902,6 +1080,8 @@ void buscar_troncos()
 				if (BD) {
 					db_add(arbol, (int)diametro * (int)PIXELES_X_CM, diametro);
 				} else {
+					for (i=0; i<N_ULT_ARBOLES;i++)
+					cout << arbol << " arbol orb es: " << db_buscar(ultimos_arboles[i].image) << endl;
 				}
 			}
 		}
