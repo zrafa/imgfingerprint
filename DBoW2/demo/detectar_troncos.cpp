@@ -191,6 +191,62 @@ void pintarTronco(cv::Mat& img, int centroX, double umbral) {
 
 // ---------------------- ENCONTRAR TRONCO
 
+// ----------------------- FUNCIONES DE AYUDA
+
+
+
+
+void adjustImageToMean(cv::Mat& image, double target_mean) {
+    // Calcular el promedio actual de la imagen
+    cv::Scalar current_mean_scalar = cv::mean(image);
+    double current_mean = current_mean_scalar[0];
+
+    // Calcular la diferencia entre el promedio deseado y el actual
+    double shift = target_mean - current_mean;
+
+    // Ajustar la imagen sumando la diferencia
+    image.convertTo(image, -1, 1, shift);
+
+    // Recortar los valores para que estén en el rango 0-255
+    cv::threshold(image, image, 255, 255, cv::THRESH_TRUNC);
+    cv::threshold(image, image, 0, 0, cv::THRESH_TOZERO);
+}
+
+
+// Función para aplicar la Transformada de Retinex multiescala
+void applyMSRCR(const cv::Mat& input, cv::Mat& output) {
+    cv::Mat logImage;
+    cv::Mat retinexImage = cv::Mat::zeros(input.size(), CV_32F);
+
+    // Convertir la imagen a logaritmo para simular la percepción humana de la luz
+    cv::Mat floatImage;
+    input.convertTo(floatImage, CV_32F, 1.0 / 255.0);  // Convertir a flotante y normalizar
+    floatImage += 1.0;  // Evitar logaritmo de cero
+    cv::log(floatImage, logImage);
+
+    // Usar filtros gaussianos de diferentes tamaños para realizar Retinex multiescala
+    std::vector<cv::Mat> scales(3);
+    cv::GaussianBlur(logImage, scales[0], cv::Size(7, 7), 30);
+    cv::GaussianBlur(logImage, scales[1], cv::Size(21, 21), 150);
+    cv::GaussianBlur(logImage, scales[2], cv::Size(31, 31), 300);
+
+    // Promediar las escalas de Retinex
+    for (size_t i = 0; i < scales.size(); ++i) {
+        retinexImage += (logImage - scales[i]) / scales.size();
+    }
+
+    // Convertir de vuelta a espacio de valores originales
+    cv::exp(retinexImage, retinexImage);
+    retinexImage -= 1.0;
+
+    // Normalizar el rango dinámico de la imagen resultante
+    cv::normalize(retinexImage, retinexImage, 0, 255, cv::NORM_MINMAX);
+
+    retinexImage.convertTo(output, CV_8U);  // Convertir la imagen de nuevo a 8 bits
+}
+
+
+
 // ------------------------------ BD
 struct arbol_db {
     int id;
@@ -222,7 +278,22 @@ cv::Ptr<cv::ORB> orb;
 int db_buscar(const cv::Mat& fotoNueva) {
 	cv::Mat descNueva;
     vector<cv::KeyPoint> keypoints;
-    orb->detectAndCompute(fotoNueva, cv::noArray(), keypoints, descNueva);
+
+		    // Aplicar la Transformada de Retinex multiescala
+    cv::Mat retinexImage;
+    applyMSRCR(fotoNueva, retinexImage);
+
+    // Ajustar el brillo para mejorar la visibilidad
+    cv::Mat finalImage;
+    retinexImage.convertTo(finalImage, -1, 1.5, 50);  // Incrementar contraste y brillo
+
+    double target_mean = 128.0;
+
+    // Ajustar las imágenes para que tengan el promedio deseado
+    adjustImageToMean(finalImage, target_mean);
+//    image = finalImage.clone();
+    orb->detectAndCompute(finalImage, cv::noArray(), keypoints, descNueva);
+    //orb->detectAndCompute(fotoNueva, cv::noArray(), keypoints, descNueva);
 
     cv::BFMatcher matcher(cv::NORM_HAMMING);
     int mejorId = -1;
@@ -408,7 +479,26 @@ void db_add(int id, int diametro_en_px, double diametro_en_cm) {
 	for (i=0; i<N_ULT_ARBOLES; i++) {
 		cv::Mat desc;
 		vector<cv::KeyPoint> keypoints;
-		orb->detectAndCompute(ultimos_arboles[i].image, cv::noArray(), keypoints, desc);
+
+
+
+		    // Aplicar la Transformada de Retinex multiescala
+    cv::Mat retinexImage;
+    applyMSRCR(ultimos_arboles[i].image, retinexImage);
+
+    // Ajustar el brillo para mejorar la visibilidad
+    cv::Mat finalImage;
+    retinexImage.convertTo(finalImage, -1, 1.5, 50);  // Incrementar contraste y brillo
+
+    double target_mean = 128.0;
+
+    // Ajustar las imágenes para que tengan el promedio deseado
+    adjustImageToMean(finalImage, target_mean);
+//    image = finalImage.clone();
+
+
+		orb->detectAndCompute(finalImage, cv::noArray(), keypoints, desc);
+		//orb->detectAndCompute(ultimos_arboles[i].image, cv::noArray(), keypoints, desc);
 		arbol.descriptores.push_back(desc);
     }
 
