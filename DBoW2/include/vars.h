@@ -9,10 +9,11 @@
 #define DISTANCIA_ARBOL 200	// hasta 200cm sería un arbol en la hilera
 
 #define CONSECUTIVOS 3		// si hay 3 fotos consecutivas con tronco 
-				// entonces se lo considera arbol cercano
+				// entonces se lo considera "posible" arbol 
 				
 // para detectar un tronco analizamos verticalmente la imagen 
 // en busca de una continuidad vertical de grises dentro de un umbral
+double umbral_color = 20.0;	// ajustar segun contraste
 double umbral_gris = 15.0;	// ajustar segun contraste
 
 
