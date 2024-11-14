@@ -668,7 +668,6 @@ void encontrar_bordes(const cv::Mat& img, long long marca_tiempo, int *x1, int *
 
 // Función para recortar la imagen alrededor del tronco
 bool recortar_tronco(const cv::Mat& img, cv::Mat& recortada, const cv::Mat& img_color, cv::Mat& recortada_color) 
-//std::optional<cv::Mat> recortar_tronco(cv::Mat& img) 
 {
 	double centerX;
 
@@ -682,6 +681,7 @@ bool recortar_tronco(const cv::Mat& img, cv::Mat& recortada, const cv::Mat& img_
 	cv::Mat blurred;
 	GaussianBlur(gray, blurred, cv::Size(5, 5), 2);
 
+	/*
 	// Analizar continuidad de color en columnas
 	vector<int> lowVarianceColumns;
 	for (int x = 0; x < gray.cols; ++x) {
@@ -696,6 +696,40 @@ bool recortar_tronco(const cv::Mat& img, cv::Mat& recortada, const cv::Mat& img_
 			lowVarianceColumns.push_back(x);
 		}
 	}
+	*/
+	// Analizar continuidad de color en columnas
+	vector<int> lowVarianceColumns;
+	for (int x = 0; x < gray.cols; ++x) {
+	    cv::Mat column = gray.col(x);
+	    cv::Scalar mean, stddev;
+	    meanStdDev(column, mean, stddev);
+
+	    // Si la desviación estándar es baja, hay poca variación vertical
+	    if (stddev[0] < 14) {
+       	 // Verificar si la columna contiene tonos de verde en la imagen original de color
+       		 cv::Mat colorColumn = img_color.col(x); // Extrae la columna en color
+       		 cv::Mat hsvColumn;
+       		 cv::cvtColor(colorColumn, hsvColumn, cv::COLOR_BGR2HSV); // Convierte a HSV
+
+       		 bool hasGreen = false;
+       		 for (int y = 0; y < hsvColumn.rows; ++y) {
+       		     cv::Vec3b hsvPixel = hsvColumn.at<cv::Vec3b>(y, 0);
+       		     int hue = hsvPixel[0];
+
+       		     // Verificar si el tono (Hue) está dentro del rango de verde
+       		     if (hue >= 35 && hue <= 85) {
+       		         hasGreen = true;
+       		         break;
+       		     }
+       		 }
+
+        // Si no tiene verde, lo consideramos un posible tronco
+        if (!hasGreen) {
+            lowVarianceColumns.push_back(x);
+        }
+    }
+}
+
 
 	// Agrupar líneas en regiones densas
 	sort(lowVarianceColumns.begin(), lowVarianceColumns.end());
@@ -705,7 +739,6 @@ bool recortar_tronco(const cv::Mat& img, cv::Mat& recortada, const cv::Mat& img_
 		cout << "No se encontró un tronco claro color" << endl;
 		return false; // Indicar error
 	};
-      // 	else {
 
 		int start = lowVarianceColumns[0];
 		int end = start;
@@ -741,7 +774,6 @@ bool recortar_tronco(const cv::Mat& img, cv::Mat& recortada, const cv::Mat& img_
 			return false;
 		}
 		cout << " centerx " << centerX << flush ;
-//	}
 
 	// Ajustar los límites de recorte para mantener 
 	// el punto rojo en el centro
