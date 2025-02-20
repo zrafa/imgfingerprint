@@ -17,9 +17,7 @@
 #include <algorithm>
 
 #include <vars.h>
-
-// DBoW2
-// #include "DBoW2.h" // defines OrbVocabulary and OrbDatabase
+#include <unistd.h>
 
 // OpenCV
 #include <opencv2/core.hpp>
@@ -44,7 +42,91 @@ int BD = 0;		// ejecutar en modo busqueda
 
 
 #include <opencv2/opencv.hpp>
-#include <iostream>
+
+
+void dibujarHilerasConTractor(cv::Mat &ventana_completa, int num_hileras, int perales_por_hilera,
+                               int distancia_hilera, int radio_peral, cv::Scalar color_peral,
+                               int radio_tractor, cv::Scalar color_tractor, int nro_hilera, int nro_peral) {
+    static bool hileras_dibujadas = false;  // Variable estática que indica si las hileras ya se dibujaron
+    static cv::Mat imagen_hileras;  // Variable estática para guardar la imagen de las hileras
+
+    if (!hileras_dibujadas) {
+        // Crear la imagen de las hileras solo una vez
+        imagen_hileras = cv::Mat::zeros(200, 600, CV_8UC3);  // Inicializamos imagen en negro (o blanco si prefieres)
+
+        // Dibujar las hileras de perales en la imagen de las hileras
+        for (int i = 0; i < num_hileras; i++) {
+            // Calcular la posición de la hilera
+            int y_pos = i * distancia_hilera + 50;  // 50 es el desplazamiento inicial
+
+            // Dibujar los perales a lo largo de la hilera
+            for (int j = 0; j < perales_por_hilera; j++) {
+                int x_pos = j * 20 + 20;  // Espacio entre los perales
+                cv::circle(imagen_hileras, cv::Point(x_pos, y_pos), radio_peral, color_peral, -1);  // Dibujar círculo relleno
+            }
+        }
+
+        // Marcar que las hileras ya fueron dibujadas
+        hileras_dibujadas = true;
+    }
+
+    // Copiar las hileras a la ventana de salida
+    //imagen_hileras.copyTo(ventana_completa);  // Copiar el contenido de imagen_hileras a ventana_completa
+    //imagen_hileras.copyTo(ventana_completa(cv::Rect(0, 400, 640, 480)));
+     if (ventana_completa.cols >= imagen_hileras.cols && ventana_completa.rows >= imagen_hileras.rows) {
+        // Verificar que la subregión seleccionada en ventana_completa tiene un tamaño adecuado
+        imagen_hileras.copyTo(ventana_completa(cv::Rect(0, 500, imagen_hileras.cols, imagen_hileras.rows)));
+    } else {
+        std::cerr << "Error: La ventana completa no tiene un tamaño suficiente para contener la imagen de las hileras." << std::endl;
+        return;
+    }
+
+
+    // Dibujar el tractor en la hilera y peral indicados
+    int tractor_x = nro_peral * 20 + 20;  // Posición x del tractor según el número de peral
+    int tractor_y = nro_hilera * distancia_hilera + 50 + 500;  // Posición y del tractor según la hilera
+    cv::circle(ventana_completa, cv::Point(tractor_x, tractor_y), radio_tractor, color_tractor, -1);  // Círculo relleno para el tractor
+
+    // Mostrar la imagen
+    cv::imshow("Ventana Principal", ventana_completa);
+    cv::waitKey(1);  // Esperar a que se cierre la ventana
+}
+
+
+
+/*
+void dibujarHilerasConTractor(cv::Mat &ventana_completa, int num_hileras, int perales_por_hilera,
+                               int distancia_hilera, int radio_peral, cv::Scalar color_peral,
+                               int radio_tractor, cv::Scalar color_tractor, int nro_hilera, int nro_peral) {
+    // Limpiar la imagen
+    // ventana_completa.setTo(cv::Scalar(255, 255, 255)); // Fondo blanco
+
+    // Dibujar las hileras de perales
+    for (int i = 0; i < num_hileras; i++) {
+        // Calcular la posición de la hilera
+        int y_pos = i * distancia_hilera + 50;  // 50 es el desplazamiento inicial
+
+        // Dibujar los perales a lo largo de la hilera
+        for (int j = 0; j < perales_por_hilera; j++) {
+            int x_pos = j * 60 + 100;  // Espacio entre los perales
+            cv::circle(ventana_completa, cv::Point(x_pos, y_pos), radio_peral, color_peral, -1);  // Dibujar círculo relleno
+        }
+    }
+
+    // Dibujar el tractor en la hilera indicada
+    int tractor_x = nro_peral * 60 + 100;  // Posición x del tractor según el número de peral
+    int tractor_y = nro_hilera * distancia_hilera + 50;  // Posición y del tractor según la hilera
+    cv::circle(ventana_completa, cv::Point(tractor_x, tractor_y), radio_tractor, color_tractor, -1);  // Círculo relleno para el tractor
+
+    // Mostrar la imagen
+    cv::imshow("Ventana Principal", ventana_completa);
+    cv::waitKey(1);  // Esperar a que se cierre la ventana
+}
+*/
+
+
+
+int tractor_en_peral = 0;
 
 // Función para mostrar imágenes en las posiciones deseadas
 void mostrar_foto(const cv::Mat& foto_orig, int posicion) {
@@ -87,7 +169,8 @@ void mostrar_foto(const cv::Mat& foto_orig, int posicion) {
 
         // Combina las imágenes en una sola para la ventana
     // La ventana completa debe ser de tamaño 1280x480
-    cv::Mat ventana_completa(480, 1480, CV_8UC3, cv::Scalar(0, 0, 0));
+    //cv::Mat ventana_completa(480, 1480, CV_8UC3, cv::Scalar(0, 0, 0));
+    cv::Mat ventana_completa(800, 1480, CV_8UC3, cv::Scalar(0, 0, 0));
 
     imagen_principal.copyTo(ventana_completa(cv::Rect(0, 0, 640, 480)));
 
@@ -100,6 +183,29 @@ void mostrar_foto(const cv::Mat& foto_orig, int posicion) {
     // Mostrar la ventana
     cv::imshow("Ventana Principal", ventana_completa);
     cv::waitKey(1);  // Para refrescar la ventana sin bloquear
+		     //
+		     //
+
+
+    // Parámetros de las hileras
+    int num_hileras = 6;  // Número de hileras de perales
+    int perales_por_hilera = 40;  // Número de perales por hilera
+    int distancia_hilera = 10;  // Espacio entre hileras
+    int radio_peral = 3;  // Radio de los círculos que representan los perales
+    cv::Scalar color_peral(0, 255, 0);  // Color verde para los perales (B, G, R)
+
+    // Parámetros del tractor
+    int radio_tractor = 5;  // Radio del círculo del tractor
+    cv::Scalar color_tractor(0, 0, 255);  // Color rojo para el tractor
+
+    // Crear una ventana para mostrar la imagen
+    //cv::Mat ventana_completa(500, 600, CV_8UC3);  // Imagen de 500x600 px
+
+    // Llamada a la función para dibujar hileras y tractor en la hilera 3, peral 5
+    dibujarHilerasConTractor(ventana_completa, num_hileras, perales_por_hilera,
+                             distancia_hilera, radio_peral, color_peral,
+                             radio_tractor, color_tractor, 3, tractor_en_peral);
+
 }
 
 
@@ -788,6 +894,8 @@ int main(int argc, char* argv[])
 
     // Inicializar la ventana principal
     cv::namedWindow("Ventana Principal", cv::WINDOW_NORMAL);
+    //cv::resizeWindow("Ventana Principal", 1280, 480);
+    cv::resizeWindow("Ventana Principal", 800, 600);
 
 
 
@@ -876,6 +984,8 @@ int distancias_dispares(const vector<double>& datos)
 
 void buscar_troncos()
 {
+	int tractor_en_hilera = 3;
+
 	std::ifstream archivo("listado.txt");
 	if (!archivo.is_open()) {
 		std::cerr << "Error al abrir el archivo." << std::endl;
@@ -930,8 +1040,9 @@ void buscar_troncos()
     // Convertir el string a long long
     long long marcaTiempo = std::stoll(marcaTiempoStr);
 
+		mostrar_foto(image_color, 1);
+		usleep(100000);
     
-		mostrar_foto(image, 1);
 		//if ((!recortar_tronco(image, image)) || (buscarDistanciaCercana(marcaTiempo) > 200)) {
 		if (buscarDistanciaCercana(marcaTiempo) > DISTANCIA_ARBOL) {
 			total = 0;
@@ -990,17 +1101,25 @@ void buscar_troncos()
 				if (BD) {
 					db_add(arbol, (int)diametro * (int)PIXELES_X_CM, diametro, ss.str());
 				} else {
+					int cant_arboles = 50;
+					int arbol_en_bd[50] = {0};
 					for (i=0; i<N_ULT_ARBOLES;i++) {
 						int cual = db_buscar(ultimos_arboles[i].image);
 
 						cout << arbol << " arbol orb es: " << cual << " " << ss.str() << " - " << db_get_foto(cual) << endl;
+						arbol_en_bd[cual]++;
+					}
+					for (i=0; i<cant_arboles;i++) {
+							// cout << i << " FINAL X " << arbol_en_bd[i] << endl;
+						if (arbol_en_bd[i] >= (N_ULT_ARBOLES/2)) {
+							cout << arbol << " arbol orb FINAL es: " << i << (N_ULT_ARBOLES/2) << endl;
+							tractor_en_peral = i;
+						}
 					}
 				}
 			}
 		}
 		total++;
-		// cv::imshow("ORB Keypoints", image);
-		// cv::waitKey(0);
 
 	}
 }
