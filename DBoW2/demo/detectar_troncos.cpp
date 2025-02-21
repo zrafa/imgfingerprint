@@ -43,6 +43,7 @@ int MARGEN;
 int DISTANCIA_ARBOL;
 int CONSECUTIVOS;
 
+int distancia = 0;	/* distancia actual leida desde lidar */
 #define N_ULT_ARBOLES 4
 
 
@@ -80,6 +81,37 @@ map<string, int> leerConfiguracion(const string& archivo) {
     return config;
 }
 
+void mostrar_distancia(cv::Mat &ventana_completa) 
+{
+ // Variable de distancia
+    // int distancia = 100;
+
+    // Formato del texto que vamos a mostrar
+    std::ostringstream texto;
+    texto << "distancia: " << distancia << " cm";
+
+    // Definir el tipo de fuente y el tamaño
+    int fontFace = cv::FONT_HERSHEY_SIMPLEX;
+    double fontScale = 1;
+    int thickness = 2;
+
+    // Obtener el tamaño del texto
+    int baseline = 0;
+    cv::Size textSize = cv::getTextSize(texto.str(), fontFace, fontScale, thickness, &baseline);
+
+    // Posicionar el texto en la parte superior izquierda, asegurando que "cm" y el número estén alineados
+    //cv::Point textOrg(ventana_completa.cols - textSize.width - 10, 500); // Ajuste de la posición X para alinear el texto
+    cv::Point textOrg(30 , 520); // Ajuste de la posición X para alinear el texto
+
+    // Mostrar el texto sobre la imagen
+    cv::putText(ventana_completa, texto.str(), textOrg, fontFace, fontScale, cv::Scalar(255, 255, 255), thickness);
+
+    // Mostrar la imagen en una ventana
+   // cv::imshow("Ventana Principal", ventana_completa);
+    // Esperar hasta que el usuario presione una tecla
+    //cv::waitKey(1);
+}
+
 
 #define rojo 0
 #define verde 1
@@ -93,7 +125,7 @@ void dibujarHilerasConTractor(cv::Mat &ventana_completa, int num_hileras, int pe
 
     if (!hileras_dibujadas) {
         // Crear la imagen de las hileras solo una vez
-        imagen_hileras = cv::Mat::zeros(200, 600, CV_8UC3);  // Inicializamos imagen en negro (o blanco si prefieres)
+        imagen_hileras = cv::Mat::zeros(250, 700, CV_8UC3);  // Inicializamos imagen en negro (o blanco si prefieres)
 
         // Dibujar las hileras de perales en la imagen de las hileras
         for (int i = 0; i < num_hileras; i++) {
@@ -125,7 +157,7 @@ void dibujarHilerasConTractor(cv::Mat &ventana_completa, int num_hileras, int pe
 
     // Dibujar el tractor en la hilera y peral indicados
     int tractor_x = nro_peral * 20 + 20;  // Posición x del tractor según el número de peral
-    int tractor_y = nro_hilera * distancia_hilera + 50 + 500;  // Posición y del tractor según la hilera
+    int tractor_y = (nro_hilera * distancia_hilera) - (distancia_hilera/2) + 50 + 500;  // Posición y del tractor según la hilera
     cv::Scalar color_tractor;
 
      if (tractor_color == rojo) 
@@ -135,8 +167,10 @@ void dibujarHilerasConTractor(cv::Mat &ventana_completa, int num_hileras, int pe
     cv::circle(ventana_completa, cv::Point(tractor_x, tractor_y), radio_tractor, color_tractor, -1);  // Círculo relleno para el tractor
 
     // Mostrar la imagen
-    cv::imshow("Ventana Principal", ventana_completa);
-    cv::waitKey(1);  // Esperar a que se cierre la ventana
+  //  cv::imshow("Ventana Principal", ventana_completa);
+   // cv::waitKey(1);  // Esperar a que se cierre la ventana
+		     //
+		     //
 }
 
 
@@ -197,17 +231,14 @@ void mostrar_foto(const cv::Mat& foto_orig, int posicion) {
 
 
 
-    // Mostrar la ventana
-    cv::imshow("Ventana Principal", ventana_completa);
-    cv::waitKey(1);  // Para refrescar la ventana sin bloquear
 		     //
 		     //
 
 
     // Parámetros de las hileras
-    int num_hileras = 6;  // Número de hileras de perales
-    int perales_por_hilera = 40;  // Número de perales por hilera
-    int distancia_hilera = 10;  // Espacio entre hileras
+    int num_hileras = 10;  // Número de hileras de perales
+    int perales_por_hilera = 33;  // Número de perales por hilera
+    int distancia_hilera = 25;  // Espacio entre hileras
     int radio_peral = 3;  // Radio de los círculos que representan los perales
     cv::Scalar color_peral(0, 255, 0);  // Color verde para los perales (B, G, R)
 
@@ -222,6 +253,11 @@ void mostrar_foto(const cv::Mat& foto_orig, int posicion) {
                              distancia_hilera, radio_peral, color_peral,
                              radio_tractor, 3, tractor_en_peral);
 
+    mostrar_distancia(ventana_completa);
+
+    // Mostrar la ventana
+    cv::imshow("Ventana Principal", ventana_completa);
+    cv::waitKey(1);  // Para refrescar la ventana sin bloquear
 }
 
 
@@ -684,7 +720,7 @@ void encontrar_bordes(const cv::Mat& img, long long marca_tiempo, int *x1, int *
     // double mediaCentral = calcularMediaColumna(centralCol);
 
     // int distancia = buscarDistanciaCercana(datosLidar, marca_tiempo);
-    int distancia = buscarDistanciaCercana(marca_tiempo);
+    distancia = buscarDistanciaCercana(marca_tiempo);
 
     if (distancia > DISTANCIA_ARBOL) {
         std::cout << "Distancia lejana: ." << distancia << " MARCA TIEMPO: " << marca_tiempo << std::endl;
@@ -1064,10 +1100,11 @@ void buscar_troncos()
     long long marcaTiempo = std::stoll(marcaTiempoStr);
 
 		mostrar_foto(image_color, 1);
-		usleep(100000);
+		usleep(50000);
     
 		//if ((!recortar_tronco(image, image)) || (buscarDistanciaCercana(marcaTiempo) > 200)) {
-		if (buscarDistanciaCercana(marcaTiempo) > DISTANCIA_ARBOL) {
+		distancia = buscarDistanciaCercana(marcaTiempo);
+		if (distancia > DISTANCIA_ARBOL) {
 			total = 0;
 			continue;
 		}
