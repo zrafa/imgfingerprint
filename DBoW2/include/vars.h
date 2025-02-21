@@ -3,12 +3,12 @@
 #define VARS_H
 
 
-#define MARGEN 200		// recortar foto a 200 pixeles a izq y a der
+//#define MARGEN 200		// recortar foto a 200 pixeles a izq y a der
 //#define N_ULT_ARBOLES 8		// nro de arboles para ser tenido en cuenta
-#define N_ULT_ARBOLES 4		// nro de arboles para ser tenido en cuenta
-#define DISTANCIA_ARBOL 200	// hasta 200cm sería un arbol en la hilera
+//#define N_ULT_ARBOLES 4		// nro de arboles para ser tenido en cuenta
+//#define DISTANCIA_ARBOL 200	// hasta 200cm sería un arbol en la hilera
 
-#define CONSECUTIVOS 3		// si hay 3 fotos consecutivas con tronco 
+//#define CONSECUTIVOS 3		// si hay 3 fotos consecutivas con tronco 
 				// entonces se lo considera "posible" arbol 
 				
 // para detectar un tronco analizamos verticalmente la imagen 

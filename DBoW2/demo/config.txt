@@ -1,0 +1,4 @@
+
+margen=200
+distancia_arbol=200
+consecutivos=3

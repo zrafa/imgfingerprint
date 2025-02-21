@@ -39,12 +39,50 @@ const int NIMAGES = 1262;
 int BD = 0;		// ejecutar en modo busqueda
 
 
-#define rojo 0
-#define verde 1
+int MARGEN;
+int DISTANCIA_ARBOL;
+int CONSECUTIVOS;
+
+#define N_ULT_ARBOLES 4
 
 
 #include <opencv2/opencv.hpp>
 
+
+using namespace std;
+
+// Función para leer el archivo de configuración
+map<string, int> leerConfiguracion(const string& archivo) {
+    ifstream archivoConfig(archivo);
+    map<string, int> config;
+    string linea;
+
+    while (getline(archivoConfig, linea)) {
+        // Saltar líneas vacías o comentarios
+        if (linea.empty() || linea[0] == '#') continue;
+
+        // Buscar el signo '='
+        size_t pos = linea.find('=');
+        if (pos != string::npos) {
+            string clave = linea.substr(0, pos);
+            string valor = linea.substr(pos + 1);
+
+            // Convertir el valor a entero
+            stringstream ss(valor);
+            int valorInt;
+            ss >> valorInt;
+
+            config[clave] = valorInt;
+        }
+    }
+
+    archivoConfig.close();
+    return config;
+}
+
+
+#define rojo 0
+#define verde 1
 int tractor_color = rojo;
 
 void dibujarHilerasConTractor(cv::Mat &ventana_completa, int num_hileras, int perales_por_hilera,
@@ -102,36 +140,6 @@ void dibujarHilerasConTractor(cv::Mat &ventana_completa, int num_hileras, int pe
 }
 
 
-
-/*
-void dibujarHilerasConTractor(cv::Mat &ventana_completa, int num_hileras, int perales_por_hilera,
-                               int distancia_hilera, int radio_peral, cv::Scalar color_peral,
-                               int radio_tractor, cv::Scalar color_tractor, int nro_hilera, int nro_peral) {
-    // Limpiar la imagen
-    // ventana_completa.setTo(cv::Scalar(255, 255, 255)); // Fondo blanco
-
-    // Dibujar las hileras de perales
-    for (int i = 0; i < num_hileras; i++) {
-        // Calcular la posición de la hilera
-        int y_pos = i * distancia_hilera + 50;  // 50 es el desplazamiento inicial
-
-        // Dibujar los perales a lo largo de la hilera
-        for (int j = 0; j < perales_por_hilera; j++) {
-            int x_pos = j * 60 + 100;  // Espacio entre los perales
-            cv::circle(ventana_completa, cv::Point(x_pos, y_pos), radio_peral, color_peral, -1);  // Dibujar círculo relleno
-        }
-    }
-
-    // Dibujar el tractor en la hilera indicada
-    int tractor_x = nro_peral * 60 + 100;  // Posición x del tractor según el número de peral
-    int tractor_y = nro_hilera * distancia_hilera + 50;  // Posición y del tractor según la hilera
-    cv::circle(ventana_completa, cv::Point(tractor_x, tractor_y), radio_tractor, color_tractor, -1);  // Círculo relleno para el tractor
-
-    // Mostrar la imagen
-    cv::imshow("Ventana Principal", ventana_completa);
-    cv::waitKey(1);  // Esperar a que se cierre la ventana
-}
-*/
 
 
 
@@ -898,6 +906,13 @@ int main(int argc, char* argv[])
 	    }
 
     }
+
+    // Leer la configuración desde el archivo
+    map<string, int> config = leerConfiguracion("config.txt");
+    // Acceder a los valores de la configuración
+    MARGEN = config["margen"];
+    DISTANCIA_ARBOL = config["distancia_arbol"];
+    CONSECUTIVOS = config["consecutivos"];
 
 
     // Inicializar la ventana principal
