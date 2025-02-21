@@ -39,14 +39,17 @@ const int NIMAGES = 1262;
 int BD = 0;		// ejecutar en modo busqueda
 
 
+#define rojo 0
+#define verde 1
 
 
 #include <opencv2/opencv.hpp>
 
+int tractor_color = rojo;
 
 void dibujarHilerasConTractor(cv::Mat &ventana_completa, int num_hileras, int perales_por_hilera,
                                int distancia_hilera, int radio_peral, cv::Scalar color_peral,
-                               int radio_tractor, cv::Scalar color_tractor, int nro_hilera, int nro_peral) {
+                               int radio_tractor, int nro_hilera, int nro_peral) {
     static bool hileras_dibujadas = false;  // Variable estática que indica si las hileras ya se dibujaron
     static cv::Mat imagen_hileras;  // Variable estática para guardar la imagen de las hileras
 
@@ -85,6 +88,12 @@ void dibujarHilerasConTractor(cv::Mat &ventana_completa, int num_hileras, int pe
     // Dibujar el tractor en la hilera y peral indicados
     int tractor_x = nro_peral * 20 + 20;  // Posición x del tractor según el número de peral
     int tractor_y = nro_hilera * distancia_hilera + 50 + 500;  // Posición y del tractor según la hilera
+    cv::Scalar color_tractor;
+
+     if (tractor_color == rojo) 
+		color_tractor = cv::Scalar(0, 0, 255);  // Color rojo para el tractor
+	else
+		color_tractor = cv::Scalar(0, 255, 0);  // Color rojo para el tractor
     cv::circle(ventana_completa, cv::Point(tractor_x, tractor_y), radio_tractor, color_tractor, -1);  // Círculo relleno para el tractor
 
     // Mostrar la imagen
@@ -196,7 +205,6 @@ void mostrar_foto(const cv::Mat& foto_orig, int posicion) {
 
     // Parámetros del tractor
     int radio_tractor = 5;  // Radio del círculo del tractor
-    cv::Scalar color_tractor(0, 0, 255);  // Color rojo para el tractor
 
     // Crear una ventana para mostrar la imagen
     //cv::Mat ventana_completa(500, 600, CV_8UC3);  // Imagen de 500x600 px
@@ -204,7 +212,7 @@ void mostrar_foto(const cv::Mat& foto_orig, int posicion) {
     // Llamada a la función para dibujar hileras y tractor en la hilera 3, peral 5
     dibujarHilerasConTractor(ventana_completa, num_hileras, perales_por_hilera,
                              distancia_hilera, radio_peral, color_peral,
-                             radio_tractor, color_tractor, 3, tractor_en_peral);
+                             radio_tractor, 3, tractor_en_peral);
 
 }
 
@@ -1077,6 +1085,9 @@ void buscar_troncos()
 			// RAFA cv::imshow("ORB Keypoints", image2);
 			// RAFA cv::waitKey(0);
 			mostrar_foto(ultimos_arboles[total].image, 2);
+
+			tractor_en_peral++;
+			tractor_color = rojo;
 		}
 		if (total == (N_ULT_ARBOLES-1)) {
 			vector<double> diametros;
@@ -1110,11 +1121,11 @@ void buscar_troncos()
 						arbol_en_bd[cual]++;
 					}
 					for (i=0; i<cant_arboles;i++) {
-							// cout << i << " FINAL X " << arbol_en_bd[i] << endl;
 						if (arbol_en_bd[i] >= (N_ULT_ARBOLES/2)) {
 							cout << arbol << " arbol orb FINAL es: " << i << (N_ULT_ARBOLES/2) << endl;
 							tractor_en_peral = i;
-						}
+							tractor_color = verde;
+						} 
 					}
 				}
 			}
