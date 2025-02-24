@@ -1,0 +1,23 @@
+
+estoy con opencv y c++
+
+Tengo un archivo gps.txt. Algunas de las lineas del archivo son:
+
+1616494858827216 1616494858827 
+$GLGSV,3,3,09,83,46,207,*50
+1616494858827223 1616494858827 
+$GNGLL,3852.06393,S,06802.22622,W,210404.00,A,A*72
+1616494859825248 1616494859825 
+$GNRMC,210405.00,A,3852.06395,S,06802.22619,W,0.084,,121024,,,A*6C
+
+Las unicas lineas importantes son las $GNRMC que tienen la posicion del movil. Y la anterior, que dice la marca del tiempo en us y en ms
+
+Quiero una funcion 
+void mostrar_gps(cv::Mat &ventana_completa, long long tiempo_us)
+
+que dado un tiempo_us muestre en la ventana_completa un pequeño circulo relleno, que represente el movil . A medida que se llame, deberá mostrar el circulo en su nueva posicion.
+
+Estoy en cipolletti, rio negro, argentina. Por si ayuda al proceso de transformar la latitud y longitud a una posicion en la ventana completa.
+
+El movil va a velocidad lenta, por lo que la ventana completa deberia ser un "espacio" que representa un area de 100mtsx100mts imagino. 
+

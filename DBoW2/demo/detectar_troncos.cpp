@@ -44,17 +44,131 @@ int DISTANCIA_ARBOL;
 int CONSECUTIVOS;
 
 int distancia = 0;	/* distancia actual leida desde lidar */
+long long tiempo_us = 0;	/* distancia actual leida desde lidar */
 #define N_ULT_ARBOLES 4
 
 
 #include <opencv2/opencv.hpp>
 
 
+
+
+
+
 using namespace std;
+
+
+
+
+
+// Estructura para almacenar los datos GPS
+struct GPSData {
+    long long timestamp_us;
+    double latitude;
+    double longitude;
+};
+
+// Función para convertir coordenadas GPS a píxeles
+cv::Point2f gpsToPixel(double latitude, double longitude, double ref_lat, double ref_lon) {
+    // Aproximación: 1 grado de latitud ≈ 111,320 metros, 1 grado de longitud ≈ 96,486 metros
+    double lat_to_meters = 111320.0;
+    double lon_to_meters = 96486.0;
+
+    // Calcular la diferencia en metros respecto a una referencia
+    double delta_lat = (latitude - ref_lat) * lat_to_meters;
+    double delta_lon = (longitude - ref_lon) * lon_to_meters;
+
+     // Convertir metros a píxeles (10 cm = 1 píxel)
+    double escala = 10.0; // 1 metro = 10 píxeles (ya que 1 píxel = 10 cm)
+    return cv::Point2f(delta_lon * escala, -delta_lat * escala); // Negativo para ajustar el eje Y
+}
+
+// Función para mostrar el GPS en la ventana
+void mostrar_gps(cv::Mat &ventana_completa) {
+    // Referencia de latitud y longitud (puedes ajustarla a tu ubicación)
+    double ref_lat = -38.867787; // Latitud de referencia (Cipolletti)
+    double ref_lon = -68.036963; // Longitud de referencia (Cipolletti)
+    // Abrir el archivo gps.txt
+    std::ifstream file("gps.txt");
+    if (!file.is_open()) {
+        std::cerr << "Error: No se pudo abrir el archivo gps.txt" << std::endl;
+        return;
+    }
+
+    // Variables para almacenar la trama más cercana
+    GPSData closest_data;
+    long long min_time_diff = std::numeric_limits<long long>::max();
+    std::string line;
+    long long prev_timestamp_us = 0;
+
+    // Leer el archivo línea por línea
+    while (std::getline(file, line)) {
+        if (line.find("$GNRMC") != std::string::npos) {
+            // Procesar la línea $GNRMC
+            std::stringstream ss(line);
+            std::string token;
+            std::vector<std::string> tokens;
+            while (std::getline(ss, token, ',')) {
+                tokens.push_back(token);
+            }
+
+            // Extraer latitud y longitud
+            double latitude = std::stod(tokens[3].substr(0, 2)) + std::stod(tokens[3].substr(2)) / 60.0;
+            double longitude = std::stod(tokens[5].substr(0, 3)) + std::stod(tokens[5].substr(3)) / 60.0;
+            if (tokens[4] == "S") latitude *= -1;
+            if (tokens[6] == "W") longitude *= -1;
+
+            // Calcular la diferencia de tiempo con el tiempo_us proporcionado
+            long long time_diff = std::abs(prev_timestamp_us - tiempo_us);
+
+            // Si esta trama es la más cercana hasta ahora, guardarla
+            if (time_diff < min_time_diff) {
+                min_time_diff = time_diff;
+                closest_data = {prev_timestamp_us, latitude, longitude};
+            }
+        } else {
+            // Extraer la marca de tiempo (en us)
+            std::stringstream ss(line);
+            ss >> prev_timestamp_us;
+        }
+    }
+
+    // Cerrar el archivo
+    file.close();
+
+        std::cout << " A " << closest_data.latitude << std::endl;
+    // Si se encontró una trama cercana, mostrar el círculo
+    if (min_time_diff != std::numeric_limits<long long>::max()) {
+        // Convertir coordenadas GPS a píxeles
+        cv::Point2f pos = gpsToPixel(closest_data.latitude, closest_data.longitude, ref_lat, ref_lon);
+
+	pos.x += 800.0f;
+	pos.y += 600.0f;
+
+        // Dibujar un círculo relleno en la posición calculada
+        cv::circle(ventana_completa, pos, 5, cv::Scalar(255, 0, 0), -1); // Círculo rojo de 5 píxeles de radio
+        std::cout << " B " << pos << std::endl;
+    }
+}
+
+
+
+
+
+
+
+
+
+
 
 // Función para leer el archivo de configuración
 map<string, int> leerConfiguracion(const string& archivo) {
     ifstream archivoConfig(archivo);
+        if (!archivoConfig) {
+        	std::cerr << "Error: config.txt no existe." << std::endl;
+        	exit(1);
+        }
+
     map<string, int> config;
     string linea;
 
@@ -83,8 +197,6 @@ map<string, int> leerConfiguracion(const string& archivo) {
 
 void mostrar_distancia(cv::Mat &ventana_completa) 
 {
- // Variable de distancia
-    // int distancia = 100;
 
     // Formato del texto que vamos a mostrar
     std::ostringstream texto;
@@ -256,6 +368,9 @@ void mostrar_foto(const cv::Mat& foto_orig, int posicion) {
     mostrar_distancia(ventana_completa);
 
     // Mostrar la ventana
+    //cv::imshow("Ventana Principal", ventana_completa);
+    //cv::waitKey(1);  // Para refrescar la ventana sin bloquear
+    mostrar_gps(ventana_completa);
     cv::imshow("Ventana Principal", ventana_completa);
     cv::waitKey(1);  // Para refrescar la ventana sin bloquear
 }
@@ -662,7 +777,6 @@ std::vector<LidarData> leerDatosLidar(const std::string& nombreArchivo) {
 
 
 // Función para buscar la distancia más cercana dada una marca de tiempo
-//int buscarDistanciaCercana(const std::vector<LidarData>& datos, long long tiempo_us) {
 int buscarDistanciaCercana(long long tiempo_us) {
     int distanciaCercana = -1;
     long long menorDiferencia = std::numeric_limits<long long>::max();
@@ -697,38 +811,19 @@ void encontrar_bordes(const cv::Mat& img, long long marca_tiempo, int *x1, int *
 {
         cv::Mat gray = img;
 
-	    // Obtener las dimensiones de la imagen
+    // Obtener las dimensiones de la imagen
     int rows = gray.rows;
     int cols = gray.cols;
 
     // Columna central
     int centralCol = cols / 2;
 
-    // Umbral de diferencia para la homogeneidad de los píxeles
-//    double umbralHomogeneidad = 15.0; // Ajustar este valor según la imagen
-
-    // Función para calcular la media de gris de una columna
-//    auto calcularMediaColumna = [&](int col) {
- //       double suma = 0.0;
-  //      for (int i = 0; i < rows; i++) {
-   //         suma += gray.at<uchar>(i, col);
-    //    }
-     //   return suma / rows;
-    //};
-
-    // Media de la columna central
-    // double mediaCentral = calcularMediaColumna(centralCol);
-
-    // int distancia = buscarDistanciaCercana(datosLidar, marca_tiempo);
     distancia = buscarDistanciaCercana(marca_tiempo);
 
     if (distancia > DISTANCIA_ARBOL) {
         std::cout << "Distancia lejana: ." << distancia << " MARCA TIEMPO: " << marca_tiempo << std::endl;
 	return;
     }
-
-    // Umbral para la diferencia de nivel de gris entre píxeles
-//    double umbral = 15.0; // Ajustar según el contraste de la imagen
 
     // Función para calcular la media de gris entre dos píxeles
     auto diferenciaPixel = [&](int fila, int col1, int col2) {
@@ -752,7 +847,6 @@ void encontrar_bordes(const cv::Mat& img, long long marca_tiempo, int *x1, int *
 
     // Buscar borde izquierdo desde la columna central hacia la izquierda
     for (int col = centralCol - 1; col > 0; col--) {
-        //if (columnaEsBorde(col, col + 1)) {
         if (columnaEsBorde(col, centralCol)) {
             bordeIzquierdo = col;
             break;
@@ -1099,10 +1193,11 @@ void buscar_troncos()
     // Convertir el string a long long
     long long marcaTiempo = std::stoll(marcaTiempoStr);
 
+			tiempo_us = marcaTiempo;
+
 		mostrar_foto(image_color, 1);
 		usleep(50000);
     
-		//if ((!recortar_tronco(image, image)) || (buscarDistanciaCercana(marcaTiempo) > 200)) {
 		distancia = buscarDistanciaCercana(marcaTiempo);
 		if (distancia > DISTANCIA_ARBOL) {
 			total = 0;
@@ -1116,27 +1211,22 @@ void buscar_troncos()
 
 		ultimos_arboles[total].nro_arbol = arbol;
 		ultimos_arboles[total].distancia = buscarDistanciaCercana(marcaTiempo);
-		// ultimos_arboles[total].image = image;
 		encontrar_bordes(image, marcaTiempo, &x1, &x2);
-		// encontrar_bordes(image_color, marcaTiempo, &x1, &x2);
 		ultimos_arboles[total].x1 = x1;
 		ultimos_arboles[total].x2 = x2;
 		ultimos_arboles[total].diametro = x2-x1;
 		cv::Rect roi(x1, 0, x2-x1, image.rows);
-		// ultimos_arboles[total].image = image(roi).clone();
 		ultimos_arboles[total].image = image.clone();
-		// RAFA cv::imshow("ORB Keypoints para orb", ultimos_arboles[total].image);
-		// RAFA cv::waitKey(0);
-		// mostrar_foto(ultimos_arboles[total].image, 1);
+
+
 		if (total == (CONSECUTIVOS-1)) {
 			arbol++;
                 	std::cout << " :tronco detectado. " << arbol << " " << total << " " << ss.str(); 
 			encontrar_bordes(image, marcaTiempo, &x1, &x2);
 
 			cv::Mat image2 = cv::imread(ss.str(), cv::IMREAD_GRAYSCALE);
-			// RAFA cv::imshow("ORB Keypoints", image2);
-			// RAFA cv::waitKey(0);
 			mostrar_foto(ultimos_arboles[total].image, 2);
+		
 
 			tractor_en_peral++;
 			tractor_color = rojo;
@@ -1145,7 +1235,6 @@ void buscar_troncos()
 			vector<double> diametros;
 			vector<double> distancias;
 			double tmp = 0.0;
-			//arbol++;
 			for (i=0; i<N_ULT_ARBOLES; i++) {
                 		std::cout << " diametro: " << ultimos_arboles[i].diametro << "  distancia: " << ultimos_arboles[i].distancia << " relacion: " << ((double)ultimos_arboles[i].diametro / (double)ultimos_arboles[i].distancia) << std::endl;
                 		tmp = (((double)ultimos_arboles[i].diametro / (double)ultimos_arboles[i].distancia) * 100.0) / PIXELES_X_CM;
@@ -1174,7 +1263,7 @@ void buscar_troncos()
 					}
 					for (i=0; i<cant_arboles;i++) {
 						if (arbol_en_bd[i] >= (N_ULT_ARBOLES/2)) {
-							cout << arbol << " arbol orb FINAL es: " << i << (N_ULT_ARBOLES/2) << endl;
+							cout << arbol << " arbol orb FINAL es: " << i << endl;
 							tractor_en_peral = i;
 							tractor_color = verde;
 						} 
