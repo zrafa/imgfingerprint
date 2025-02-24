@@ -83,11 +83,8 @@ cv::Point2f gpsToPixel(double latitude, double longitude, double ref_lat, double
     return cv::Point2f(delta_lon * escala, -delta_lat * escala); // Negativo para ajustar el eje Y
 }
 
-// Función para mostrar el GPS en la ventana
-void mostrar_gps(cv::Mat &ventana_completa) {
-    // Referencia de latitud y longitud (puedes ajustarla a tu ubicación)
-    double ref_lat = -38.867787; // Latitud de referencia (Cipolletti)
-    double ref_lon = -68.036963; // Longitud de referencia (Cipolletti)
+void obtener_gps_latitud_longitud (long long tiempo_us, double *latitud, double *longitud) {
+
     // Abrir el archivo gps.txt
     std::ifstream file("gps.txt");
     if (!file.is_open()) {
@@ -136,11 +133,36 @@ void mostrar_gps(cv::Mat &ventana_completa) {
     // Cerrar el archivo
     file.close();
 
-        std::cout << " A " << closest_data.latitude << std::endl;
+	// Definir el rango de ±2 segundos en microsegundos
+    long long rango_inferior = tiempo_us - 2000000; // tiempo_us - 2 segundos
+    long long rango_superior = tiempo_us + 2000000; // tiempo_us + 2 segundos
+
+    // Verificar si min_time_diff está dentro del rango
+    if (min_time_diff <= 2000000) {
+	    // rango_inferior && min_time_diff <= rango_superior) {
+        *latitud = (double) closest_data.latitude;
+        *longitud = (double) closest_data.longitude;
+    } else {
+        *latitud = (double) -1.0;
+        *longitud = (double) -1.0;
+    }
+
+}
+
+// Función para mostrar el GPS en la ventana
+void mostrar_gps(cv::Mat &ventana_completa) {
+    // Referencia de latitud y longitud (puedes ajustarla a tu ubicación)
+    double ref_lat = -38.867787; // Latitud de referencia (Cipolletti)
+    double ref_lon = -68.036963; // Longitud de referencia (Cipolletti)
+
+    double latitud;
+    double longitud;
+    obtener_gps_latitud_longitud(tiempo_us, &latitud, &longitud);
+
     // Si se encontró una trama cercana, mostrar el círculo
-    if (min_time_diff != std::numeric_limits<long long>::max()) {
+    if (latitud != -1.0) {
         // Convertir coordenadas GPS a píxeles
-        cv::Point2f pos = gpsToPixel(closest_data.latitude, closest_data.longitude, ref_lat, ref_lon);
+        cv::Point2f pos = gpsToPixel(latitud, longitud, ref_lat, ref_lon);
 
 	pos.x += 800.0f;
 	pos.y += 600.0f;
@@ -516,6 +538,8 @@ struct arbol_db {
     int id;
     int diametro_en_px;
     double diametro_en_cm;
+    double latitud;
+    double longitud;
     std::string foto;
     vector<cv::Mat> descriptores;
 };
@@ -529,6 +553,8 @@ struct frutal {
 	int diametro;
 	int x1; 	// lateral izquierdo del arbol en la foto
 	int x2; 	// lateral derecho del arbol en la foto
+	double latitud;
+	double longitud;
 	cv::Mat image;  // falta foto
 	// falta marca de tiempo
 } st_frutal;
@@ -623,12 +649,14 @@ int db_buscar(const cv::Mat& fotoNueva) {
 
 
 // Función para agregar descriptores ORB de un árbol a la base de datos
-void db_add(int id, int diametro_en_px, double diametro_en_cm, std::string foto) {
+void db_add(int id, int diametro_en_px, double diametro_en_cm, double latitud, double longitud, std::string foto) {
 	int i;
     arbol_db arbol;
     arbol.id = id;
     arbol.diametro_en_px = diametro_en_px;
     arbol.diametro_en_cm = diametro_en_cm;
+    arbol.latitud = latitud;
+    arbol.longitud = longitud;
     arbol.foto = foto;
 
 	for (i=0; i<N_ULT_ARBOLES; i++) {
@@ -670,6 +698,8 @@ void db_save(const string& archivo) {
         fs << "diametro_en_px" << arbol.diametro_en_px;
         fs << "diametro_en_cm" << arbol.diametro_en_cm;
         fs << "foto" << arbol.foto;
+        fs << "latitud" << arbol.latitud;
+        fs << "longitud" << arbol.longitud;
 
         fs << "descriptores" << "[";
         for (const auto& desc : arbol.descriptores) {
@@ -1166,8 +1196,7 @@ void buscar_troncos()
                 // Calcula la duración
                 std::chrono::duration<double> duration = end - start;
                 // Imprime la duración en segundos
-                std::cout << " Tiempo transcurrido foto : " << numero << " " << ii-1 << "  " << duration.count() << " segundos" << std::endl;
-                // Inicia un nuevo cronometro
+                std::cout << " Tiempo transcurrido foto : " << numero << " " << ii-1 << "  " << duration.count() << " segundos" << std::endl; // Inicia un nuevo cronometro
                 start = std::chrono::high_resolution_clock::now();
 
 
@@ -1196,7 +1225,7 @@ void buscar_troncos()
 			tiempo_us = marcaTiempo;
 
 		mostrar_foto(image_color, 1);
-		usleep(50000);
+		// usleep(50000);
     
 		distancia = buscarDistanciaCercana(marcaTiempo);
 		if (distancia > DISTANCIA_ARBOL) {
@@ -1244,14 +1273,20 @@ void buscar_troncos()
 			if (distancias_dispares(distancias) || (diametros_dispares(diametros))) {
                 		cout << arbol << " :distancias dispares " << endl;
 				if (BD) {
-					db_add(arbol, -1, -1.0, ss.str());
+					double latitud; double longitud;
+					obtener_gps_latitud_longitud(tiempo_us, &latitud, &longitud);
+					db_add(arbol, -1, -1.0, latitud, longitud, ss.str());
 				} else {
+					// NADA
 				}
+
 			} else {
     				double diametro = diametro_medio(diametros);
                 		cout << arbol << " :diametro medio en cm (sin distancia): . " << diametro << endl;
 				if (BD) {
-					db_add(arbol, (int)diametro * (int)PIXELES_X_CM, diametro, ss.str());
+					double latitud; double longitud;
+					obtener_gps_latitud_longitud(tiempo_us, &latitud, &longitud);
+					db_add(arbol, (int)diametro * (int)PIXELES_X_CM, diametro, latitud, longitud, ss.str());
 				} else {
 					int cant_arboles = 50;
 					int arbol_en_bd[50] = {0};
