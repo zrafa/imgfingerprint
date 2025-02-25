@@ -1285,13 +1285,13 @@ void buscar_troncos()
 		}
 
 
-    std::string nombreArchivo = ss.str();
-    // Encontrar la posición del punto para eliminar la extensión
-    size_t pos = nombreArchivo.find(".jpg");
-    // Extraer la parte del nombre sin la extensión
-    std::string marcaTiempoStr = nombreArchivo.substr(0, pos);
-    // Convertir el string a long long
-    long long marcaTiempo = std::stoll(marcaTiempoStr);
+		std::string nombreArchivo = ss.str();
+		// Encontrar la posición del punto para eliminar la extensión
+		size_t pos = nombreArchivo.find(".jpg");
+		// Extraer la parte del nombre sin la extensión
+		std::string marcaTiempoStr = nombreArchivo.substr(0, pos);
+		// Convertir el string a long long
+		long long marcaTiempo = std::stoll(marcaTiempoStr);
 
 			tiempo_us = marcaTiempo;
 
@@ -1341,48 +1341,48 @@ void buscar_troncos()
 				diametros.push_back(tmp);
 				distancias.push_back(ultimos_arboles[i].distancia);
 			}
-			if (distancias_dispares(distancias) || (diametros_dispares(diametros))) {
-                		cout << arbol << " :distancias dispares " << endl;
-				if (BD) {
+			if (BD) {
+				if (distancias_dispares(distancias) || (diametros_dispares(diametros))) {
+					std::cout << arbol << " :distancias dispares " << endl;
 					double latitud; double longitud;
 					obtener_gps_latitud_longitud(tiempo_us, &latitud, &longitud);
 					db_add(arbol, -1, -1.0, latitud, longitud, ss.str());
 				} else {
-					// NADA
-				}
-
-			} else {
-    				double diametro_en_cm = diametro_medio(diametros);
-                		cout << arbol << " :diametro medio en cm (sin distancia): . " << diametro_en_cm << endl;
-				if (BD) {
+    					double diametro_en_cm = diametro_medio(diametros);
+               				cout << arbol << " :diametro medio en cm (sin distancia): . " << diametro_en_cm << endl;
 					double latitud; double longitud;
 					obtener_gps_latitud_longitud(tiempo_us, &latitud, &longitud);
 					db_add(arbol, (int)diametro_en_cm * (int)PIXELES_X_CM, diametro_en_cm, latitud, longitud, ss.str());
-				} else {
-					double latitud; double longitud;
-					obtener_gps_latitud_longitud(tiempo_us, &latitud, &longitud);
-					int cual; double distancia;
-					db_buscar_por_gps(arbol, latitud, longitud, &cual, &distancia);
-					cout << arbol << " arbol por GPS FINAL es: " << cual <<  " distancia: " << distancia << endl;
+				}
+			} else {
+				double latitud; double longitud;
+				obtener_gps_latitud_longitud(tiempo_us, &latitud, &longitud);
+				int cual; double distancia;
+				db_buscar_por_gps(arbol, latitud, longitud, &cual, &distancia);
+				cout << arbol << " arbol por GPS FINAL es: " << cual <<  " distancia: " << distancia << endl;
+
+				if (! (distancias_dispares(distancias) || (diametros_dispares(diametros)))) {
+					double diametro_en_cm = diametro_medio(diametros);
 					int cual_diametro;
 					cual_diametro = db_buscar_por_diametro(diametro_en_cm, arbol);
 					cout << arbol << " arbol por diametro FINAL es: " << cual_diametro << endl;
+				}
 
-					int cant_arboles = 50;
-					int arbol_en_bd[50] = {0};
-					for (i=0; i<N_ULT_ARBOLES;i++) {
-						int cual = db_buscar(ultimos_arboles[i].image);
+				int cant_arboles = 50;
+				int arbol_en_bd[50] = {0};
+				for (i=0; i<N_ULT_ARBOLES;i++) {
+					int cual = db_buscar(ultimos_arboles[i].image);
 
-						cout << arbol << " arbol orb es: " << cual << " " << ss.str() << " - " << db_get_foto(cual) << endl;
-						arbol_en_bd[cual]++;
-					}
-					for (i=0; i<cant_arboles;i++) {
-						if (arbol_en_bd[i] >= (N_ULT_ARBOLES/2)) {
-							cout << arbol << " arbol orb FINAL es: " << i << endl;
-							tractor_en_peral = i;
-							tractor_color = verde;
-						} 
-					}
+					cout << arbol << " arbol orb es: " << cual << " " << ss.str() << " - " << db_get_foto(cual) << endl;
+					arbol_en_bd[cual]++;
+				}
+				for (i=0; i<cant_arboles;i++) {
+					if (arbol_en_bd[i] >= (N_ULT_ARBOLES/2)) {
+						cout << arbol << " arbol orb FINAL es: " << i << endl;
+						tractor_en_peral = i;
+						tractor_color = verde;
+						break;
+					} 
 				}
 			}
 		}
