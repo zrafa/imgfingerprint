@@ -133,12 +133,8 @@ void obtener_gps_latitud_longitud (long long tiempo_us, double *latitud, double 
     // Cerrar el archivo
     file.close();
 
-	// Definir el rango de ±2 segundos en microsegundos
-    long long rango_inferior = tiempo_us - 2000000; // tiempo_us - 2 segundos
-    long long rango_superior = tiempo_us + 2000000; // tiempo_us + 2 segundos
-
     // Verificar si min_time_diff está dentro del rango
-    if (min_time_diff <= 2000000) {
+    if (min_time_diff <= 1000000) {
 	    // rango_inferior && min_time_diff <= rango_superior) {
         *latitud = (double) closest_data.latitude;
         *longitud = (double) closest_data.longitude;
@@ -574,6 +570,60 @@ std::string db_get_foto(int n)
 	return  "empty";
 }
 
+struct GPSPosition {
+    double latitude;  // Latitud en grados decimales
+    double longitude; // Longitud en grados decimales
+
+    GPSPosition(double lat = 0.0, double lon = 0.0) : latitude(lat), longitude(lon) {}
+};
+
+double toDecimalDegrees(double degreesMinutes) {
+    double degrees = static_cast<int>(degreesMinutes / 100);
+    double minutes = degreesMinutes - (degrees * 100);
+    return degrees + (minutes / 60.0);
+}
+
+double haversineDistance(const GPSPosition& pos1, const GPSPosition& pos2) {
+    const double R = 6371.0; // Radio de la Tierra en kilómetros
+
+    double lat1 = pos1.latitude * M_PI / 180.0;
+    double lon1 = pos1.longitude * M_PI / 180.0;
+    double lat2 = pos2.latitude * M_PI / 180.0;
+    double lon2 = pos2.longitude * M_PI / 180.0;
+
+    double dlat = lat2 - lat1;
+    double dlon = lon2 - lon1;
+
+    double a = std::sin(dlat / 2) * std::sin(dlat / 2) +
+               std::cos(lat1) * std::cos(lat2) *
+               std::sin(dlon / 2) * std::sin(dlon / 2);
+    double c = 2 * std::atan2(std::sqrt(a), std::sqrt(1 - a));
+
+    return R * c; // Distancia en kilómetros
+}
+
+void db_buscar_por_gps(double latitud, double longitud, int *cual, double *distancia) {
+	double min_distance = 1000; 	/* mil metros */
+
+	*cual = -1;
+	*distancia = 1000;
+
+    	for (const auto& arbol : db) {
+		GPSPosition pos1(latitud, longitud);
+		GPSPosition pos2(arbol.latitud, arbol.longitud);
+
+
+		// Calcular la distancia en METROS entre las dos posiciones
+		double distance = haversineDistance(pos1, pos2) * 1000.0;
+        	std::cout << arbol.id << " Distancia GPS " << distance << " " << latitud << " " << arbol.latitud << " " << longitud << " " << arbol.longitud << std::endl;
+		if (distance < min_distance) {
+			min_distance = distance;
+			*cual = arbol.id;
+		}
+	}
+	*distancia = min_distance;
+}
+
 int db_buscar(const cv::Mat& fotoNueva) {
 	cv::Mat descNueva;
     vector<cv::KeyPoint> keypoints;
@@ -721,6 +771,8 @@ void db_load(const string& archivo) {
         node["id"] >> arbol.id;
         node["diametro_en_px"] >> arbol.diametro_en_px;
         node["diametro_en_cm"] >> arbol.diametro_en_cm;
+        node["latitud"] >> arbol.latitud;
+        node["longitud"] >> arbol.longitud;
         node["foto"] >> arbol.foto;
 
 	cv::FileNode descs = node["descriptores"];
@@ -1288,6 +1340,11 @@ void buscar_troncos()
 					obtener_gps_latitud_longitud(tiempo_us, &latitud, &longitud);
 					db_add(arbol, (int)diametro * (int)PIXELES_X_CM, diametro, latitud, longitud, ss.str());
 				} else {
+					double latitud; double longitud;
+					obtener_gps_latitud_longitud(tiempo_us, &latitud, &longitud);
+					int cual; double distancia;
+					db_buscar_por_gps(latitud, longitud, &cual, &distancia);
+					cout << arbol << " arbol por GPS FINAL es: " << cual <<  " distancia: " << distancia << endl;
 					int cant_arboles = 50;
 					int arbol_en_bd[50] = {0};
 					for (i=0; i<N_ULT_ARBOLES;i++) {
