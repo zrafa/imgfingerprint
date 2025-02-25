@@ -602,8 +602,24 @@ double haversineDistance(const GPSPosition& pos1, const GPSPosition& pos2) {
     return R * c; // Distancia en kilómetros
 }
 
-void db_buscar_por_gps(double latitud, double longitud, int *cual, double *distancia) {
+int db_buscar_por_diametro(double diametro_cm, int arbol_id) {
+	int cual = -1;
+	int max_nro_arboles = 1;
+	double min_diametro = 1000.0;
+
+    	for (const auto& arbol : db) {
+		if ((std::abs(arbol.diametro_en_cm - diametro_cm) < min_diametro) &&
+		   (std::abs(arbol.id - arbol_id) <= max_nro_arboles)) {
+			min_diametro = std::abs(arbol.diametro_en_cm - diametro_cm);
+			cual = arbol.id;
+		}
+	}
+	return cual;
+}
+
+void db_buscar_por_gps(int arbol_id, double latitud, double longitud, int *cual, double *distancia) {
 	double min_distance = 1000; 	/* mil metros */
+	int max_nro_arboles = 1;
 
 	*cual = -1;
 	*distancia = 1000;
@@ -616,7 +632,8 @@ void db_buscar_por_gps(double latitud, double longitud, int *cual, double *dista
 		// Calcular la distancia en METROS entre las dos posiciones
 		double distance = haversineDistance(pos1, pos2) * 1000.0;
         	std::cout << arbol.id << " Distancia GPS " << distance << " " << latitud << " " << arbol.latitud << " " << longitud << " " << arbol.longitud << std::endl;
-		if (distance < min_distance) {
+		if ((distance < min_distance) &&
+		   (std::abs(arbol.id - arbol_id) <= max_nro_arboles)) {
 			min_distance = distance;
 			*cual = arbol.id;
 		}
@@ -802,6 +819,8 @@ void ult_arboles_init(void )
 		ultimos_arboles[i].nro_arbol = -1;
 		ultimos_arboles[i].distancia = -1;
 		ultimos_arboles[i].diametro = -1;
+		ultimos_arboles[i].latitud = -1;
+		ultimos_arboles[i].longitud = -1;
 		ultimos_arboles[i].x1 = -1;
 		ultimos_arboles[i].x2 = -1;
 	}
@@ -1333,18 +1352,22 @@ void buscar_troncos()
 				}
 
 			} else {
-    				double diametro = diametro_medio(diametros);
-                		cout << arbol << " :diametro medio en cm (sin distancia): . " << diametro << endl;
+    				double diametro_en_cm = diametro_medio(diametros);
+                		cout << arbol << " :diametro medio en cm (sin distancia): . " << diametro_en_cm << endl;
 				if (BD) {
 					double latitud; double longitud;
 					obtener_gps_latitud_longitud(tiempo_us, &latitud, &longitud);
-					db_add(arbol, (int)diametro * (int)PIXELES_X_CM, diametro, latitud, longitud, ss.str());
+					db_add(arbol, (int)diametro_en_cm * (int)PIXELES_X_CM, diametro_en_cm, latitud, longitud, ss.str());
 				} else {
 					double latitud; double longitud;
 					obtener_gps_latitud_longitud(tiempo_us, &latitud, &longitud);
 					int cual; double distancia;
-					db_buscar_por_gps(latitud, longitud, &cual, &distancia);
+					db_buscar_por_gps(arbol, latitud, longitud, &cual, &distancia);
 					cout << arbol << " arbol por GPS FINAL es: " << cual <<  " distancia: " << distancia << endl;
+					int cual_diametro;
+					cual_diametro = db_buscar_por_diametro(diametro_en_cm, arbol);
+					cout << arbol << " arbol por diametro FINAL es: " << cual_diametro << endl;
+
 					int cant_arboles = 50;
 					int arbol_en_bd[50] = {0};
 					for (i=0; i<N_ULT_ARBOLES;i++) {
